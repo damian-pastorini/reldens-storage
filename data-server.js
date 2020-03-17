@@ -8,6 +8,7 @@
 
 const { Model } = require('objection');
 const Knex = require('knex');
+const { Logger, ErrorManager } = require('@reldens/utils');
 
 class DataServer
 {
@@ -18,19 +19,19 @@ class DataServer
         this.prepareDbConfig();
         // check for errors:
         if(!this.config.user){
-            throw new Error('Missing storage user configuration.');
+            ErrorManager.error('Missing storage user configuration.');
         }
         if(!this.config.database){
-            throw new Error('Missing storage database name configuration.');
+            ErrorManager.error('Missing storage database name configuration.');
         }
         // log connection string before prepare objection (in case you have some missing data in the config):
         let {host, port, database, user, password} = this.config;
-        console.info(`${this.client}://${user}${(password ? ':'+password : '')}@${host}:${port}/${database}`);
+        Logger.info(`${this.client}://${user}${(password ? ':'+password : '')}@${host}:${port}/${database}`);
         try {
             this.prepareObjection();
-            console.info('Objection JS ready!');
+            Logger.info('Objection JS ready!');
         } catch (err) {
-            throw new Error('Objection JS - ERROR: '+err);
+            ErrorManager.error('Objection JS - ERROR: '+err);
         }
     }
 
