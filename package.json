@@ -1,7 +1,7 @@
 {
     "name": "@reldens/storage",
     "scope": "@reldens",
-    "version": "0.1.0",
+    "version": "0.1.1",
     "description": "Reldens - Storage",
     "source": true,
     "homepage": "https://github.com/damian-pastorini/reldens-storage",
@@ -37,7 +37,7 @@
     "license": "MIT",
     "main": "data-server.js",
     "dependencies": {
-        "@reldens/utils": "^0.1.1",
+        "@reldens/utils": "^0.1.5",
         "knex": "^0.20.11",
         "objection": "^2.1.3"
     },
