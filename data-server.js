@@ -44,9 +44,11 @@ class DataServer
             port: Number(process.env.RELDENS_DB_PORT) || 3306,
             database: process.env.RELDENS_DB_NAME || false,
             user: process.env.RELDENS_DB_USER || false,
-            password: process.env.RELDENS_DB_PASSWORD || '',
-            connectionLimit: Number(process.env.RELDENS_DB_LIMIT) || 10
+            password: process.env.RELDENS_DB_PASSWORD || ''
         };
+        if(process.env.RELDENS_DB_LIMIT){
+            this.config.connectionLimit = Number(process.env.RELDENS_DB_LIMIT);
+        }
     }
 
     prepareObjection()
