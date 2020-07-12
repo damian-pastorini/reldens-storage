@@ -52,7 +52,7 @@ class DataServer
         }
         this.poolConfig = {
             min: Number(process.env.RELDENS_DB_POOL_MIN) || 2,
-            max: Number(process.env.RELDENS_DB_POOL_MAX) || 30
+            max: Number(process.env.RELDENS_DB_POOL_MAX) || 10
         };
     }
 
