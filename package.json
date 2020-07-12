@@ -1,10 +1,13 @@
 {
     "name": "@reldens/storage",
     "scope": "@reldens",
-    "version": "0.1.4",
+    "version": "0.1.5",
     "description": "Reldens - Storage",
-    "source": true,
+    "author": "Damian A. Pastorini",
+    "license": "MIT",
     "homepage": "https://github.com/damian-pastorini/reldens-storage",
+    "source": true,
+    "main": "data-server.js",
     "repository": {
         "type": "git",
         "url": "https://github.com/damian-pastorini/reldens-storage.git"
@@ -30,12 +33,6 @@
     "bugs": {
         "url": "https://github.com/damian-pastorini/reldens-storage/issues"
     },
-    "engines": {
-        "node": "13.1.0"
-    },
-    "author": "Damian A. Pastorini",
-    "license": "MIT",
-    "main": "data-server.js",
     "dependencies": {
         "@reldens/utils": "^0.1.5",
         "knex": "^0.21.2",
