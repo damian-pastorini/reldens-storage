@@ -38,8 +38,8 @@ class DataServer
         Logger.info(['DataServer Config:', this.config, this.poolConfig, this.connectString]);
         try {
             this.prepareObjection();
-            Logger.info('Objection JS ready!');
             this.initialized = Date.now();
+            Logger.info('Objection JS ready!');
         } catch (err) {
             ErrorManager.error('Objection JS - ERROR: '+err);
         }
