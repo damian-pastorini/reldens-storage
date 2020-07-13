@@ -13,8 +13,16 @@ const { Logger, ErrorManager } = require('@reldens/utils');
 class DataServer
 {
 
+    constructor()
+    {
+        this.initialized = false;
+    }
+
     initialize()
     {
+        if(this.initialized){
+            return true;
+        }
         // db config:
         this.prepareDbConfig();
         // check for errors:
@@ -31,6 +39,7 @@ class DataServer
         try {
             this.prepareObjection();
             Logger.info('Objection JS ready!');
+            this.initialized = Date.now();
         } catch (err) {
             ErrorManager.error('Objection JS - ERROR: '+err);
         }
