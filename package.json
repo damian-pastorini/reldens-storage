@@ -1,7 +1,7 @@
 {
     "name": "@reldens/storage",
     "scope": "@reldens",
-    "version": "0.1.9",
+    "version": "0.1.10",
     "description": "Reldens - Storage",
     "author": "Damian A. Pastorini",
     "license": "MIT",
