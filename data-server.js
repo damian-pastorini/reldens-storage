@@ -6,7 +6,13 @@
  *
  */
 
+// @TODO:
+//   - Remove the ModelClass export (it is a temporal access to objection models through this package), replace by a
+//   index.js and export multiple classes like the other libraries.
+//   - Create different drivers for Objection and Mikro-ORM (since this last one accepts NoSQL databases).
+//   - Create a base entity to wrap drivers main features and use as single entry point for child entities.
 const { Model } = require('objection');
+module.exports.ModelClass = Model;
 const Knex = require('knex');
 const { Logger, ErrorManager } = require('@reldens/utils');
 
