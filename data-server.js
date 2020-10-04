@@ -11,8 +11,9 @@
 //   index.js and export multiple classes like the other libraries.
 //   - Create different drivers for Objection and Mikro-ORM (since this last one accepts NoSQL databases).
 //   - Create a base entity to wrap drivers main features and use as single entry point for child entities.
-const { Model } = require('objection');
-module.exports.ModelClass = Model;
+
+module.exports.ModelClass = require('./lib/objection-model');
+
 const Knex = require('knex');
 const { Logger, ErrorManager } = require('@reldens/utils');
 
