@@ -77,7 +77,7 @@ class DataServer
         // initialize knex, the query builder:
         this.knex = Knex({client: this.client, connection: this.config, pool: this.poolConfig});
         // give the knex instance to Objection.
-        this.model = Model.knex(this.knex);
+        this.model = ModelClass.knex(this.knex);
     }
 
 }
