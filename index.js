@@ -2,8 +2,6 @@
  *
  * Reldens - Storage
  *
- * This module handle the database connection and queries.
- *
  */
 
 const { BaseDataServer } = require('./lib/base-data-server');
