@@ -6,18 +6,21 @@
 
 const { BaseDataServer } = require('./lib/base-data-server');
 const { BaseDriver } = require('./lib/base-driver');
-const { ObjectionJsDriver } = require('./lib/objection-js-driver');
-const { ObjectionJsDataServer } = require('./lib/objection-js-data-server');
-const { MikroOrmDriver } = require('./lib/mikro-orm-driver');
-const { ModelClassDeprecated } = require('./lib/objection-js-model-deprecated');
+const { ObjectionJsDriver } = require('./lib/objection-js/objection-js-driver');
+const { ObjectionJsDataServer } = require('./lib/objection-js/objection-js-data-server');
+const { Model } = require('objection');
+const { MikroOrmDriver } = require('./lib/mikro-orm/mikro-orm-driver');
+const { MikroOrmDataServer } = require('./lib/mikro-orm/mikro-orm-data-server');
 
 module.exports = {
-    ModelClassDeprecated: ModelClassDeprecated,
-    // databases:
+    // base:
     BaseDataServer: BaseDataServer,
-    ObjectionJsDataServer: ObjectionJsDataServer,
-    // drivers:
     BaseDriver: BaseDriver,
+    // objection-js:
+    ObjectionJsDataServer: ObjectionJsDataServer,
     ObjectionJsDriver: ObjectionJsDriver,
+    ObjectionJsRawModel: Model,
+    // mikro-orm:
+    MikroOrmDataServer: MikroOrmDataServer,
     MikroOrmDriver: MikroOrmDriver
 };
