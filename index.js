@@ -6,7 +6,6 @@
 
 const { BaseDataServer } = require('./lib/base-data-server');
 const { BaseDriver } = require('./lib/base-driver');
-const { DataServerSetter } = require('./lib/data-server-setter');
 const { ObjectionJsDriver } = require('./lib/objection-js/objection-js-driver');
 const { ObjectionJsDataServer } = require('./lib/objection-js/objection-js-data-server');
 const { Model } = require('objection');
@@ -17,7 +16,6 @@ module.exports = {
     // base:
     BaseDataServer: BaseDataServer,
     BaseDriver: BaseDriver,
-    DataServerSetter: DataServerSetter,
     // objection-js:
     ObjectionJsDataServer: ObjectionJsDataServer,
     ObjectionJsDriver: ObjectionJsDriver,
