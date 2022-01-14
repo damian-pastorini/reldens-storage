@@ -1,7 +1,7 @@
 {
     "name": "@reldens/storage",
     "scope": "@reldens",
-    "version": "0.10.0-beta.28",
+    "version": "0.10.0-beta.29",
     "description": "Reldens - Storage",
     "author": "Damian A. Pastorini",
     "license": "MIT",
@@ -44,7 +44,7 @@
         "url": "https://github.com/damian-pastorini/reldens-storage/issues"
     },
     "dependencies": {
-        "@reldens/utils": "^0.10.0-beta.2",
+        "@reldens/utils": "^0.10.0-beta.3",
         "knex": "^0.95.15",
         "objection": "^3.0.1",
         "mysql": "^2.18.1"
