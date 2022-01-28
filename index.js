@@ -11,6 +11,7 @@ const { ObjectionJsDataServer } = require('./lib/objection-js/objection-js-data-
 const { Model } = require('objection');
 const { MikroOrmDriver } = require('./lib/mikro-orm/mikro-orm-driver');
 const { MikroOrmDataServer } = require('./lib/mikro-orm/mikro-orm-data-server');
+const MikroOrmCore = require('@mikro-orm/core');
 
 module.exports = {
     // base:
@@ -21,6 +22,7 @@ module.exports = {
     ObjectionJsDriver: ObjectionJsDriver,
     ObjectionJsRawModel: Model,
     // mikro-orm:
+    MikroOrmCore,
     MikroOrmDataServer: MikroOrmDataServer,
     MikroOrmDriver: MikroOrmDriver
 };
