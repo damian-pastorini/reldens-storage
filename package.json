@@ -1,7 +1,7 @@
 {
     "name": "@reldens/storage",
     "scope": "@reldens",
-    "version": "0.10.0-beta.32",
+    "version": "0.10.0-beta.33",
     "description": "Reldens - Storage",
     "author": "Damian A. Pastorini",
     "license": "MIT",
@@ -44,10 +44,10 @@
         "url": "https://github.com/damian-pastorini/reldens-storage/issues"
     },
     "dependencies": {
-        "@mikro-orm/core": "^4.5.10",
-        "@mikro-orm/mongodb": "^4.5.10",
-        "@reldens/utils": "^0.10.0-beta.3",
-        "knex": "^1.0.1",
+        "@mikro-orm/core": "^5.0.0",
+        "@mikro-orm/mongodb": "^5.0.0",
+        "@reldens/utils": "^0.10.0-beta.4",
+        "knex": "^1.0.3",
         "mysql": "^2.18.1",
         "objection": "^3.0.1"
     }
