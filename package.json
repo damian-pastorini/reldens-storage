@@ -44,9 +44,9 @@
         "url": "https://github.com/damian-pastorini/reldens-storage/issues"
     },
     "dependencies": {
-        "@mikro-orm/core": "^5.0.1",
-        "@mikro-orm/mongodb": "^5.0.1",
-        "@reldens/utils": "^0.10.0-beta.4",
+        "@mikro-orm/core": "^5.0.3",
+        "@mikro-orm/mongodb": "^5.0.3",
+        "@reldens/utils": "^0.11.0",
         "knex": "^1.0.3",
         "mysql": "^2.18.1",
         "objection": "^3.0.1"
