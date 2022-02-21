@@ -1,13 +1,13 @@
 {
     "name": "@reldens/storage",
     "scope": "@reldens",
-    "version": "0.4.1",
+    "version": "0.11.0",
     "description": "Reldens - Storage",
     "author": "Damian A. Pastorini",
     "license": "MIT",
     "homepage": "https://github.com/damian-pastorini/reldens-storage",
     "source": true,
-    "main": "data-server.js",
+    "main": "index.js",
     "repository": {
         "type": "git",
         "url": "https://github.com/damian-pastorini/reldens-storage.git"
@@ -15,6 +15,16 @@
     "keywords": [
         "reldens",
         "storage",
+        "objection",
+        "objectionjs",
+        "objection-js",
+        "mikro",
+        "mikroorm",
+        "mikro-orm",
+        "driver",
+        "orm",
+        "database",
+        "db",
         "system",
         "game",
         "mmorpg",
@@ -34,9 +44,11 @@
         "url": "https://github.com/damian-pastorini/reldens-storage/issues"
     },
     "dependencies": {
-        "@reldens/utils": "^0.4.3",
-        "knex": "^0.21.15",
-        "objection": "^2.2.6",
-        "mysql": "^2.18.1"
+        "@mikro-orm/core": "^5.0.1",
+        "@mikro-orm/mongodb": "^5.0.1",
+        "@reldens/utils": "^0.10.0-beta.4",
+        "knex": "^1.0.3",
+        "mysql": "^2.18.1",
+        "objection": "^3.0.1"
     }
 }
