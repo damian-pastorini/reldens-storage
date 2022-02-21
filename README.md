@@ -5,13 +5,13 @@
 ## About this package
 This package is designed to provide a standard drivers support for managing Reldens project data.
 
-This way in Reldens project we can trust that any driver implement will have the exact same methods available to fetch and manage the project entities.
+This way in any Reldens project we can trust that any driver implementation will have the exact same methods available to fetch and manage the project entities.
 
 Every time you need to load, create, update or delete data in Reldens, the drivers from this package will be used.
 
 ## Current features
-The current drivers are to support two other ORMs:
-- Objection JS (with Knex), for everything that's SQL related.
+The package currently has drivers to support two ORMs:
+- Objection JS (with Knex), for everything that's SQL related (this is our base and recommended package).
 ```javascript
 let server = new ObjectionJsDataServer({
     client: 'mysql',
@@ -23,7 +23,7 @@ let server = new ObjectionJsDataServer({
     }
 });
 ```
-- Mikro-ORM, to offer support for MongoDB.
+- Mikro-ORM, to offer support for nonSQL/MongoDB (this package is not finished, if you like to use it please contact us).
 ```javascript
 let server = new MikroOrmDataServer({
     client: 'mongodb',
