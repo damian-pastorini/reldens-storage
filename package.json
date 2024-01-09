@@ -1,7 +1,7 @@
 {
     "name": "@reldens/storage",
     "scope": "@reldens",
-    "version": "0.18.0",
+    "version": "0.19.0",
     "description": "Reldens - Storage",
     "author": "Damian A. Pastorini",
     "license": "MIT",
@@ -46,9 +46,9 @@
     "dependencies": {
         "@mikro-orm/core": "^5.9.3",
         "@mikro-orm/mongodb": "^5.9.3",
-        "@reldens/utils": "^0.21.0",
-        "knex": "^3.0.1",
+        "@reldens/utils": "^0.22.0",
+        "knex": "^3.1.0",
         "mysql": "^2.18.1",
-        "objection": "^3.1.2"
+        "objection": "^3.1.3"
     }
 }
