@@ -12,17 +12,30 @@ const { Model } = require('objection');
 const { MikroOrmDriver } = require('./lib/mikro-orm/mikro-orm-driver');
 const { MikroOrmDataServer } = require('./lib/mikro-orm/mikro-orm-data-server');
 const MikroOrmCore = require('@mikro-orm/core');
+const { EntitiesGenerator } = require('./lib/entities-generator');
+const { EntityProperties } = require('./lib/entity-properties');
+const { TypeMapper } = require('./lib/type-mapper');
+const { MySQLTablesProvider } = require('./lib/mysql-tables-provider');
 
 module.exports = {
     // base:
-    BaseDataServer: BaseDataServer,
-    BaseDriver: BaseDriver,
+    BaseDataServer,
+    BaseDriver,
+    DriversMap: {
+        'objection-js': ObjectionJsDataServer,
+        'mikro-orm': MikroOrmDataServer
+    },
     // objection-js:
-    ObjectionJsDataServer: ObjectionJsDataServer,
-    ObjectionJsDriver: ObjectionJsDriver,
+    ObjectionJsDataServer,
+    ObjectionJsDriver,
     ObjectionJsRawModel: Model,
     // mikro-orm:
     MikroOrmCore,
-    MikroOrmDataServer: MikroOrmDataServer,
-    MikroOrmDriver: MikroOrmDriver
+    MikroOrmDataServer,
+    MikroOrmDriver,
+    // entities:
+    EntitiesGenerator,
+    EntityProperties,
+    TypeMapper,
+    MySQLTablesProvider
 };

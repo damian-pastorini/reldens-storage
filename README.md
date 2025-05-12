@@ -3,56 +3,103 @@
 # Reldens - Storage
 
 ## About this package
-This package is designed to provide a standard drivers support for managing Reldens project data.
+This package provides standardized database drivers for Reldens projects. 
+It ensures consistent data access methods across different database types and ORM implementations.
 
-This way in any Reldens project we can trust that any driver implementation will have the exact same methods available to fetch and manage the project entities.
+## Features
 
-Every time you need to load, create, update or delete data in Reldens, the drivers from this package will be used.
+### ORM Support
+- **Objection JS** (via Knex) - For SQL databases (recommended)
+- **Mikro-ORM** - For MongoDB/NoSQL support
 
-## Current features
-The package currently has drivers to support two ORMs:
-- Objection JS (with Knex), for everything that's SQL related (this is our base and recommended package).
+### Entity Management
+- Standardized CRUD operations
+- Automatic entity generation from database schemas
+- Type mapping between database and JavaScript
+- Foreign key relationship handling
+- ENUM field support with formatted values
+
+### CLI Tools
+Generate entity files directly from your database structure:
+```bash
+npx reldens-storage generateEntities --user=dbuser --pass=dbpass --database=dbname --driver=objection-js
+```
+
+Options:
+- `--user` - Database username
+- `--pass` - Database password
+- `--host` - Database host (default: localhost)
+- `--port` - Database port (default: 3306)
+- `--database` - Database name
+- `--driver` - ORM driver (objection-js|mikro-orm)
+- `--client` - Database client (mysql|mysql2|mongodb)
+- `--path` - Project path for output files
+
+## Usage Examples
+
+### SQL with Objection JS
 ```javascript
-let server = new ObjectionJsDataServer({
-    client: 'mysql',
+const { ObjectionJsDataServer } = require('@reldens/storage');
+
+const server = new ObjectionJsDataServer({
+    client: 'mysql2',
     config: {
         user: 'reldens',
         password: 'reldens',
         database: 'reldens',
-        port : 3306,
+        host: 'localhost',
+        port: 3306
     }
 });
+
+await server.connect();
+const entities = server.generateEntities();
 ```
-- Mikro-ORM, to offer support for nonSQL/MongoDB (this package is not finished, if you like to use it please contact us).
+
+### MongoDB with Mikro-ORM
 ```javascript
-let server = new MikroOrmDataServer({
+const { MikroOrmDataServer } = require('@reldens/storage');
+
+const server = new MikroOrmDataServer({
     client: 'mongodb',
     config: {
         user: 'reldens',
         password: 'reldens',
-        database: 'test',
-        port : 27017,
+        database: 'reldens',
+        host: 'localhost',
+        port: 27017
     },
-    connectStringOptions: 'authSource=reldens&readPreference=primary&appname=MongoDB%20Compass&ssl=false',
-    autoGenerateEntities: false,
-    rawEntities: Object.values(rawRegisteredEntities)
+    connectStringOptions: 'authSource=reldens&readPreference=primary&ssl=false',
+    rawEntities: yourEntities
 });
+
+await server.connect();
+const entities = server.generateEntities();
 ```
 
-## Custom drivers
-Through this package you can also create your own drivers (to support your own storage system) and later implement it on any Reldens project.
+## Custom Drivers
 
-In order to do this, just extend the BaseDataServer and BaseDriver classes and fill all the required methods.
+You can create custom storage drivers by extending the base classes:
 
-For last, on your Reldens implementation you just need to pass an instance of your data server to the server manager and you are done:
+1. Extend `BaseDataServer` and `BaseDriver`
+2. Implement all required methods
+3. Pass your custom server instance to Reldens ServerManager:
+
+```javascript
+const { ServerManager } = require('@reldens/server');
+const YourCustomDriver = require('./your-custom-driver');
+
+const customDriver = new YourCustomDriver(options);
+const appServer = new ServerManager(serverConfig, eventsManager, customDriver);
 ```
-const appServer = new ServerManager(serverConfig, eventsManager, yourDriverInstance);
-```
 
-You can also check the [skeleton implementation](https://github.com/damian-pastorini/reldens-skeleton/) to see how it works.
+## Links
+- [Reldens Website](https://www.reldens.com/)
+- [GitHub Repository](https://github.com/damian-pastorini/reldens/tree/master)
 
-For reference see Reldens GitHub: [https://github.com/damian-pastorini/reldens/tree/master](https://github.com/damian-pastorini/reldens/tree/master)
+---
 
 ### [Reldens](https://www.reldens.com/ "Reldens")
 
 ##### [By DwDeveloper](https://www.dwdeveloper.com/ "DwDeveloper")
+
