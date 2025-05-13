@@ -3,7 +3,7 @@
 # Reldens - Storage
 
 ## About this package
-This package provides standardized database drivers for Reldens projects. 
+This package provides standardized database drivers for Reldens projects.
 It ensures consistent data access methods across different database types and ORM implementations.
 
 ## Features
@@ -11,6 +11,7 @@ It ensures consistent data access methods across different database types and OR
 ### ORM Support
 - **Objection JS** (via Knex) - For SQL databases (recommended)
 - **Mikro-ORM** - For MongoDB/NoSQL support
+- **Prisma** - Modern database toolkit
 
 ### Entity Management
 - Standardized CRUD operations
@@ -33,6 +34,20 @@ Options:
 - `--database` - Database name
 - `--driver` - ORM driver (objection-js|mikro-orm)
 - `--client` - Database client (mysql|mysql2|mongodb)
+- `--path` - Project path for output files
+
+Generate Prisma schema for Prisma database:
+```bash
+npx reldens-storage-prisma --user=dbuser --pass=dbpass --database=dbname
+```
+
+Options:
+- `--user` - Database username
+- `--pass` - Database password
+- `--host` - Database host (default: localhost)
+- `--port` - Database port (default: 3306)
+- `--database` - Database name
+- `--client` - Database client (mysql|mysql2|postgresql|mongodb)
 - `--path` - Project path for output files
 
 ## Usage Examples
@@ -77,6 +92,35 @@ await server.connect();
 const entities = server.generateEntities();
 ```
 
+### Using Prisma
+
+First, generate your Prisma schema:
+```bash
+npx reldens-storage-prisma --user=dbuser --pass=dbpass --database=dbname
+```
+
+Then, use the PrismaDataServer in your code:
+```javascript
+const { PrismaDataServer } = require('@reldens/storage');
+
+const server = new PrismaDataServer({
+    client: 'mysql2',
+    config: {
+        user: 'reldens',
+        password: 'reldens',
+        database: 'reldens',
+        host: 'localhost',
+        port: 3306
+    },
+    rawEntities: yourEntities
+});
+
+await server.connect();
+const entities = server.generateEntities();
+```
+
+Note: The PrismaDataServer requires the Prisma schema to be generated first. Make sure to run the `reldens-storage-prisma` command before using PrismaDataServer.
+
 ## Custom Drivers
 
 You can create custom storage drivers by extending the base classes:
@@ -102,4 +146,3 @@ const appServer = new ServerManager(serverConfig, eventsManager, customDriver);
 ### [Reldens](https://www.reldens.com/ "Reldens")
 
 ##### [By DwDeveloper](https://www.dwdeveloper.com/ "DwDeveloper")
-

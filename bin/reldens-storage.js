@@ -65,7 +65,7 @@ let generator = new EntitiesGenerator({connectionData, projectPath});
 generator.generate().then((success) => {
     if(!success){
         Logger.error('Entity generation failed.');
-        return;
+        process.exit();
     }
     Logger.info('Entity generation completed successfully!');
     process.exit();

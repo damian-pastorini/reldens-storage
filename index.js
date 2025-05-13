@@ -16,6 +16,9 @@ const { EntitiesGenerator } = require('./lib/entities-generator');
 const { EntityProperties } = require('./lib/entity-properties');
 const { TypeMapper } = require('./lib/type-mapper');
 const { MySQLTablesProvider } = require('./lib/mysql-tables-provider');
+const { PrismaDriver } = require('./lib/prisma/prisma-driver');
+const { PrismaDataServer } = require('./lib/prisma/prisma-data-server');
+const { PrismaSchemaGenerator } = require('./lib/prisma/prisma-schema-generator');
 
 module.exports = {
     // base:
@@ -23,7 +26,8 @@ module.exports = {
     BaseDriver,
     DriversMap: {
         'objection-js': ObjectionJsDataServer,
-        'mikro-orm': MikroOrmDataServer
+        'mikro-orm': MikroOrmDataServer,
+        'prisma': PrismaDataServer
     },
     // objection-js:
     ObjectionJsDataServer,
@@ -33,6 +37,10 @@ module.exports = {
     MikroOrmCore,
     MikroOrmDataServer,
     MikroOrmDriver,
+    // prisma:
+    PrismaDataServer,
+    PrismaDriver,
+    PrismaSchemaGenerator,
     // entities:
     EntitiesGenerator,
     EntityProperties,

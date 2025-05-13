@@ -1,0 +1,32 @@
+/**
+ *
+ * Reldens - {{modelClassName}}
+ *
+ */
+
+const { PrismaClient } = require('@prisma/client');
+
+class {{modelClassName}}
+{
+
+    constructor({{modelPropertiesList}})
+    {
+        {{modelPropertiesConstructor}}
+    }
+
+    static get client()
+    {
+        if(!this._client){
+            this._client = new PrismaClient();
+        }
+        return this._client;
+    }
+
+    static get model()
+    {
+        return this.client['{{tableName}}'];
+    }
+    {{modelRelations}}
+}
+
+module.exports.{{modelClassName}} = {{modelClassName}};
