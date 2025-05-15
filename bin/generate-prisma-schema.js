@@ -12,7 +12,7 @@ const { Logger } = require('@reldens/utils');
 let args = process.argv.slice(2);
 
 let connectionData = {
-    client: 'mysql2',
+    client: 'mysql',
     config: {
         user: '',
         password: '',
