@@ -70,10 +70,7 @@ if(!connectionData.config.user || !connectionData.config.database){
     process.exit();
 }
 
-let generator = new PrismaSchemaGenerator({
-    ...connectionData,
-    prismaSchemaPath: projectPath+'/prisma'
-});
+let generator = new PrismaSchemaGenerator({...connectionData, prismaSchemaPath: projectPath+'/prisma'});
 
 generator.generate().then((success) => {
     if(!success){
