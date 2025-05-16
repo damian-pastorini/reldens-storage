@@ -104,7 +104,7 @@ Then, use the PrismaDataServer in your code:
 const { PrismaDataServer } = require('@reldens/storage');
 
 const server = new PrismaDataServer({
-    client: 'mysql2',
+    client: 'mysql',
     config: {
         user: 'reldens',
         password: 'reldens',
