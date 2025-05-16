@@ -32,7 +32,7 @@ module.exports = {
     DriversClassMap: {
         'ObjectionJsDataServer': 'objection-js',
         'MikroOrmDataServer': 'mikro-orm',
-        'PrismaDataServer': 'prisma-server'
+        'PrismaDataServer': 'prisma'
     },
     // objection-js:
     ObjectionJsDataServer,
