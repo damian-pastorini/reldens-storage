@@ -26,6 +26,11 @@ class {{modelClassName}}
     {
         return this.client['{{tableName}}'];
     }
+
+    static get tableName()
+    {
+        return '{{tableName}}';
+    }
     {{modelRelations}}
 }
 
