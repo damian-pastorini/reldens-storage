@@ -1,7 +1,7 @@
 {
     "name": "@reldens/storage",
     "scope": "@reldens",
-    "version": "0.43.0",
+    "version": "0.44.0",
     "description": "Reldens - Storage",
     "author": "Damian A. Pastorini",
     "license": "MIT",
@@ -32,19 +32,11 @@
         "database",
         "db",
         "system",
-        "game",
-        "mmorpg",
-        "rpg",
-        "dwd",
-        "colyseus",
-        "phaser",
-        "parcel",
         "nodejs",
-        "mmo",
-        "multiplayer",
-        "rol",
         "platform",
-        "framework"
+        "framework",
+        "library",
+        "lib"
     ],
     "bugs": {
         "url": "https://github.com/damian-pastorini/reldens-storage/issues"
