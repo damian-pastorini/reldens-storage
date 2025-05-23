@@ -14,7 +14,8 @@ class {{entityClassName}} extends EntityProperties
         let properties = {
             {{propertiesConfig}}
         };
-        let showProperties = Object.keys(properties);
+        let propertiesKeys = Object.keys(properties);
+        {{showPropertiesDeclaration}}
         {{editPropertiesRemoval}}
         {{listPropertiesDeclaration}}
         return {
