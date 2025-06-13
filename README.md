@@ -23,32 +23,39 @@ It ensures consistent data access methods across different database types and OR
 ### CLI Tools
 Generate entity files directly from your database structure:
 ```bash
-npx reldens-storage generateEntities --user=dbuser --pass=dbpass --database=dbname --driver=objection-js
+npx reldens-storage generateEntities --user=[dbuser] --pass=[dbpass] --database=[dbname] --driver=[objection-js]
 ```
 
 Options:
-- `--user` - Database username
-- `--pass` - Database password
-- `--host` - Database host (default: localhost)
-- `--port` - Database port (default: 3306)
-- `--database` - Database name
-- `--driver` - ORM driver (objection-js|mikro-orm)
-- `--client` - Database client (mysql|mysql2|mongodb)
-- `--path` - Project path for output files
+- `--user=[username]` - Database username
+- `--pass=[password]` - Database password
+- `--host=[host]` - Database host (default: localhost)
+- `--port=[port]` - Database port (default: 3306)
+- `--database=[name]` - Database name
+- `--driver=[driver]` - ORM driver (objection-js|mikro-orm|prisma)
+- `--client=[client]` - Database client (mysql|mysql2|mongodb)
+- `--path=[path]` - Project path for output files
+- `--override` - Regenerate all files even if they exist
 
-Generate Prisma schema for Prisma database:
+Generate Prisma schema:
 ```bash
-npx reldens-storage-prisma --user=dbuser --pass=dbpass --database=dbname
+npx reldens-generate-prisma-schema --host=[host] --port=[port] --user=[dbuser] --password=[dbpass] --database=[dbname]
 ```
 
 Options:
-- `--user` - Database username
-- `--pass` - Database password
-- `--host` - Database host (default: localhost)
-- `--port` - Database port (default: 3306)
-- `--database` - Database name
-- `--client` - Database client (mysql|mysql2|postgresql|mongodb)
-- `--path` - Project path for output files
+- `--host=[host]` - Database host (required)
+- `--port=[port]` - Database port (required)
+- `--user=[username]` - Database username (required)
+- `--password=[password]` - Database password (required)
+- `--database=[name]` - Database name (required)
+- `--client=[client]` - Database client (default: mysql)
+- `--debug` - Enable debug mode
+- `--dataProxy` - Enable data proxy
+- `--checkInterval=[ms]` - Check interval in milliseconds (default: 1000)
+- `--maxWaitTime=[ms]` - Max wait time in milliseconds (default: 30000)
+- `--prismaSchemaPath=[path]` - Path to Prisma schema directory
+- `--clientOutputPath=[path]` - Client output path (if not set, uses Prisma default)
+- `--generateBinaryTargets=[targets]` - Comma-separated binary targets (default: native)
 
 ## Usage Examples
 
@@ -96,7 +103,7 @@ const entities = server.generateEntities();
 
 First, generate your Prisma schema:
 ```bash
-npx reldens-storage-prisma --user=dbuser --pass=dbpass --database=dbname
+npx reldens-generate-prisma-schema --host=localhost --port=3306 --user=dbuser --password=dbpass --database=dbname
 ```
 
 Then, use the PrismaDataServer in your code:
@@ -119,7 +126,7 @@ await server.connect();
 const entities = server.generateEntities();
 ```
 
-Note: The PrismaDataServer requires the Prisma schema to be generated first. Make sure to run the `reldens-storage-prisma` command before using PrismaDataServer.
+Note: The PrismaDataServer requires the Prisma schema to be generated first. Make sure to run the `reldens-generate-prisma-schema` command before using PrismaDataServer.
 
 ## Custom Drivers
 
