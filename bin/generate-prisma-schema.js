@@ -7,6 +7,7 @@
  */
 
 const { PrismaSchemaGenerator } = require('../lib/prisma/prisma-schema-generator');
+const { FileHandler } = require('@reldens/server-utils');
 const { Logger } = require('@reldens/utils');
 
 let args = process.argv.slice(2);
@@ -70,7 +71,10 @@ if(!connectionData.config.user || !connectionData.config.database){
     process.exit();
 }
 
-let generator = new PrismaSchemaGenerator({...connectionData, prismaSchemaPath: projectPath+'/prisma'});
+let generator = new PrismaSchemaGenerator({
+    ...connectionData, 
+    prismaSchemaPath: FileHandler.joinPaths(projectPath, 'prisma')
+});
 
 generator.generate().then((success) => {
     if(!success){
