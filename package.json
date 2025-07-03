@@ -1,7 +1,7 @@
 {
     "name": "@reldens/storage",
     "scope": "@reldens",
-    "version": "0.60.0",
+    "version": "0.61.0",
     "description": "Reldens - Storage",
     "author": "Damian A. Pastorini",
     "license": "MIT",
@@ -45,13 +45,13 @@
         "@mikro-orm/core": "^6.4.16",
         "@mikro-orm/mongodb": "^6.4.16",
         "@mikro-orm/mysql": "^6.4.16",
-        "@prisma/client": "^6.10.1",
-        "@reldens/server-utils": "^0.20.0",
+        "@prisma/client": "^6.11.0",
+        "@reldens/server-utils": "^0.21.0",
         "@reldens/utils": "^0.50.0",
         "knex": "^3.1.0",
         "mysql": "^2.18.1",
         "mysql2": "^3.14.1",
         "objection": "^3.1.5",
-        "prisma": "^6.10.1"
+        "prisma": "^6.11.0"
     }
 }
