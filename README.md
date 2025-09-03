@@ -55,7 +55,23 @@ Options:
 - `--maxWaitTime=[ms]` - Max wait time in milliseconds (default: 30000)
 - `--prismaSchemaPath=[path]` - Path to Prisma schema directory
 - `--clientOutputPath=[path]` - Client output path (if not set, uses Prisma default)
-- `--generateBinaryTargets=[targets]` - Comma-separated binary targets (default: native)
+- `--generateBinaryTargets=[targets]` - Comma-separated binary targets (default: native,debian-openssl-1.1.x)
+- `--dbParams=[params]` - Database connection parameters (e.g., authPlugin=mysql_native_password)
+
+### Environment Variables
+
+You can set database connection parameters using environment variables:
+
+```bash
+# Basic authentication plugin for AWS MySQL 8.0+
+RELDENS_DB_PARAMS="authPlugin=mysql_native_password"
+
+# SSL configuration for AWS RDS
+RELDENS_DB_PARAMS="authPlugin=mysql_native_password&sslmode=require&sslcert=ca-cert.pem"
+
+# Full SSL with client certificates
+RELDENS_DB_PARAMS="authPlugin=mysql_native_password&sslmode=require&sslcert=ca-cert.pem&sslidentity=client.p12&sslpassword=certpass"
+```
 
 ## Usage Examples
 
@@ -104,6 +120,20 @@ const entities = server.generateEntities();
 First, generate your Prisma schema:
 ```bash
 npx reldens-generate-prisma-schema --host=localhost --port=3306 --user=dbuser --password=dbpass --database=dbname
+```
+
+For AWS RDS with SSL:
+```bash
+# Set environment variable first
+export RELDENS_DB_PARAMS="authPlugin=mysql_native_password&sslmode=require"
+
+# Then generate schema
+npx reldens-generate-prisma-schema --host=your-rds-host.amazonaws.com --port=3306 --user=dbuser --password=dbpass --database=dbname
+```
+
+Or pass parameters directly:
+```bash
+npx reldens-generate-prisma-schema --host=your-rds-host.amazonaws.com --port=3306 --user=dbuser --password=dbpass --database=dbname --dbParams="authPlugin=mysql_native_password&sslmode=require"
 ```
 
 Then, use the PrismaDataServer in your code:

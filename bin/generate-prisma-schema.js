@@ -76,7 +76,8 @@ class PrismaSchemaGeneratorCLI
         Logger.info('  --maxWaitTime=[ms]               Max wait time in milliseconds (default: 30000)');
         Logger.info('  --prismaSchemaPath=[path]        Path to Prisma schema directory');
         Logger.info('  --clientOutputPath=[path]        Client output path (if not set, uses Prisma default)');
-        Logger.info('  --generateBinaryTargets=[targets] Comma-separated binary targets (default: native)');
+        Logger.info('  --generateBinaryTargets=[targets] Comma-separated binary targets (default: native,debian-openssl-1.1.x)');
+        Logger.info('  --dbParams=[params]              Database connection parameters (e.g., authPlugin=mysql_native_password)');
         Logger.info('');
         Logger.info('Example:');
         Logger.info('  npx reldens-generate-prisma-schema --host=localhost --port=3306 --user=root --password=secret --database=mydb');
@@ -120,7 +121,8 @@ class PrismaSchemaGeneratorCLI
             maxWaitTime: sc.get(this.config, 'maxWaitTime', 30000),
             prismaSchemaPath: sc.get(this.config, 'prismaSchemaPath'),
             clientOutputPath: sc.get(this.config, 'clientOutputPath'),
-            generateBinaryTargets: sc.get(this.config, 'generateBinaryTargets')
+            generateBinaryTargets: sc.get(this.config, 'generateBinaryTargets'),
+            dbParams: sc.get(this.config, 'dbParams')
         };
     }
 
