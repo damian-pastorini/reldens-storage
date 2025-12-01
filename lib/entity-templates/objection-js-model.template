@@ -13,7 +13,7 @@ class {{modelClassName}} extends ObjectionJsRawModel
     {
         return '{{tableName}}';
     }
-    {{modelRelations}}
+{{idColumn}}{{modelRelations}}
 }
 
 module.exports.{{modelClassName}} = {{modelClassName}};
