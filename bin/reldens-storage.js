@@ -7,6 +7,7 @@
  */
 
 const { EntitiesGenerator } = require('../lib/entities-generator');
+const { FileHandler } = require('@reldens/server-utils');
 const { Logger, sc } = require('@reldens/utils');
 
 class StorageEntitiesGenerator
@@ -19,6 +20,7 @@ class StorageEntitiesGenerator
         this.config = {};
         this.projectPath = process.cwd();
         this.isOverride = false;
+        this.prismaClientPath = '';
         this.parseArguments();
     }
 
@@ -38,9 +40,13 @@ class StorageEntitiesGenerator
                 continue;
             }
             let key = arg.substring(2, equalIndex);
-            let value = arg.substring(equalIndex + 1);
+            let value = arg.substring(equalIndex+1);
             if('path' === key){
                 this.projectPath = value;
+                continue;
+            }
+            if('prismaClientPath' === key){
+                this.prismaClientPath = value;
                 continue;
             }
             if('pass' === key){
@@ -69,6 +75,9 @@ class StorageEntitiesGenerator
         if('mikro-orm' === connectionData.driver && !this.config.client){
             connectionData.client = 'mysql';
         }
+        if('prisma' === connectionData.driver && !this.config.client){
+            connectionData.client = 'mysql';
+        }
         return connectionData;
     }
 
@@ -84,14 +93,52 @@ class StorageEntitiesGenerator
     validateRequiredArgs(connectionData)
     {
         if(!connectionData.user || !connectionData.database){
-            Logger.error('Required parameters missing.');
-            Logger.error('Usage: npx reldens-storage generateEntities --user=[db-username] --pass=[db-password] --host=[db-host] --database=[db-name] --driver=[driver-map-key] --client=[db-client] --path=[project-path] --override');
-            Logger.error('');
-            Logger.error('Optional flags:');
-            Logger.error('  --override    Regenerate all files even if they exist');
+            Logger.error(
+                'Required parameters missing.',
+                'Usage: npx reldens-storage generateEntities --user=[db-username]'
+                +' --pass=[db-password]'
+                +' --host=[db-host]'
+                +' --database=[db-name]'
+                +' --driver=[driver-map-key]'
+                +' --client=[db-client]'
+                +' --prismaClientPath=[path-to-prisma-client]'
+                +' --path=[project-path] --override',
+                'Optional flags:',
+                '  --override    Regenerate all files even if they exist'
+            );
             return false;
         }
         return true;
+    }
+
+    loadPrismaClient(connectionData)
+    {
+        let prismaClientPath = this.prismaClientPath;
+        if(!prismaClientPath){
+            prismaClientPath = FileHandler.joinPaths(this.projectPath, 'prisma', 'client');
+        }
+        if(!FileHandler.exists(prismaClientPath)){
+            Logger.critical('PrismaClient path does not exist: '+prismaClientPath);
+            Logger.info('Please run "npx prisma generate" first or provide --prismaClientPath argument.');
+            return null;
+        }
+        Logger.info('Loading PrismaClient from: '+prismaClientPath);
+        let prismaModule = require(prismaClientPath);
+        if(!prismaModule.PrismaClient){
+            Logger.critical('PrismaClient class not found at: '+prismaClientPath);
+            return null;
+        }
+        let connectionString = connectionData.client+'://'
+            +connectionData.user
+            +(connectionData.password ? ':'+connectionData.password : '')
+            +'@'+connectionData.host
+            +':'+connectionData.port
+            +'/'+connectionData.database;
+        Logger.info('Creating PrismaClient with connection to: '+connectionData.database);
+        return new prismaModule.PrismaClient({
+            datasources: {db: {url: connectionString}},
+            log: ['error']
+        });
     }
 
     async run()
@@ -103,11 +150,19 @@ class StorageEntitiesGenerator
         if(!this.validateRequiredArgs(connectionData)){
             return false;
         }
-        let generator = new EntitiesGenerator({
+        let generatorProps = {
             connectionData,
             projectPath: this.projectPath,
             isOverride: this.isOverride
-        });
+        };
+        if('prisma' === connectionData.driver){
+            let prismaClient = this.loadPrismaClient(connectionData);
+            if(!prismaClient){
+                return false;
+            }
+            generatorProps.prismaClient = prismaClient;
+        }
+        let generator = new EntitiesGenerator(generatorProps);
         let success = await generator.generate();
         if(!success){
             Logger.error('Entity generation failed.');

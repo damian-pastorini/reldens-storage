@@ -105,12 +105,18 @@ npx reldens-storage-prisma --host=<host> --database=<db> --user=<user> --passwor
   - Automatic schema synchronization
 
 **Prisma Driver** (`lib/prisma/`):
-- `prisma-driver.js`: Driver implementation
+- `prisma-driver.js`: Driver implementation with enhanced validation
 - `prisma-data-server.js`: Data server using Prisma Client
 - `prisma-schema-generator.js`: Schema generation and introspection
+- `prisma-metadata-loader.js`: Loads field metadata including defaults
+- `prisma-type-caster.js`: Type casting and normalization
+- `prisma-relation-resolver.js`: Relation mapping and transformations
 - Features:
-  - Schema-first approach
-  - Type-safe queries
+  - Schema-first approach with auto-introspection
+  - Type-safe queries with Prisma Client
+  - Custom `ensureRequiredFields()` validation for better error messages
+  - Database default value support (skips validation for fields with defaults)
+  - VARCHAR foreign key support using relation connect syntax
   - Introspection via `prisma db pull`
   - Binary targets configuration
   - Data proxy support
@@ -236,6 +242,122 @@ All generated entity relations follow the `related_*` prefix pattern:
   - The `_id` suffix is removed from column name when multiple references exist
 
 This pattern is consistent across all ORM drivers and is defined in `entities-config.js`.
+
+## Prisma Driver Validation System
+
+### ensureRequiredFields() Method
+
+The Prisma driver includes custom validation that differs from ObjectionJS and provides better error messages:
+
+**Location:** `lib/prisma/prisma-driver.js` lines 201-223
+
+**Purpose:** Validates that all required fields are present before sending data to Prisma Client
+
+**Key Behavior:**
+```javascript
+ensureRequiredFields(data) {
+    let missingFields = [];
+    for(let field of this.requiredFields){
+        if(sc.hasOwn(data, field)){
+            continue;  // Field is present
+        }
+        if(sc.hasOwn(this.foreignKeyMappings, field)){
+            let relationName = this.foreignKeyMappings[field];
+            if(sc.hasOwn(data, relationName)){
+                continue;  // FK mapped to relation (connect syntax)
+            }
+        }
+        if(sc.hasOwn(this.fieldDefaults, field)){
+            continue;  // Field has database default - skip validation
+        }
+        missingFields.push(field);
+    }
+    if(0 < missingFields.length){
+        Logger.warning('Missing required fields for '+this.tableName()+': '+missingFields.join(', '));
+    }
+    return data;
+}
+```
+
+**Important:** This validation runs BEFORE Prisma Client, allowing it to:
+1. Provide clear error messages about missing fields
+2. Allow database defaults to work (doesn't validate fields with defaults)
+3. Support foreign key relation syntax (checks both FK field and relation)
+
+### Database Default Values
+
+**How It Works:**
+- Metadata loader extracts default values from Prisma schema (`@default()` directive)
+- Stored in `this.fieldDefaults` map during driver initialization
+- Validation skips required fields that have defaults
+- Prisma/database applies default when field is missing
+
+**Example:**
+```javascript
+// Prisma schema
+model scores_detail {
+  kill_time  DateTime @default(now()) @db.DateTime(0)
+}
+
+// Admin panel sends data without kill_time
+{
+  player_id: 1001,
+  obtained_score: 150
+  // kill_time missing but has default
+}
+
+// Validation skips kill_time (has default)
+// Prisma creates record, database applies DEFAULT CURRENT_TIMESTAMP
+```
+
+### Comparison with ObjectionJS
+
+**ObjectionJS Driver:**
+```javascript
+create(params) {
+    return this.queryBuilder().insert(params);
+}
+```
+- No validation
+- Passes data directly to Knex
+- Database handles missing fields and defaults
+- Less informative error messages
+
+**Prisma Driver:**
+```javascript
+async create(params) {
+    let preparedData = this.prepareDataWithRelations(params, true);
+    this.ensureRequiredFields(preparedData);  // Custom validation
+    try {
+        return this.typeCaster.normalizeReturnData(await this.model.create({data: preparedData}));
+```
+- Custom validation before Prisma
+- Better error messages
+- Supports database defaults
+- Type-safe queries
+
+**Key Difference:** Prisma validates first, so it must be aware of database defaults to allow them to work.
+
+### Foreign Key Handling
+
+Both drivers handle foreign keys, but with different syntax:
+
+**ObjectionJS:**
+```javascript
+// Direct FK field
+{player_id: 1001}
+```
+
+**Prisma:**
+```javascript
+// Relation connect syntax
+{players: {connect: {id: 1001}}}
+
+// Also supports VARCHAR FKs
+{related_table: {connect: {custom_id: "ABC123"}}}
+```
+
+The `prepareDataWithRelations()` method (lines 156-199) automatically converts FK fields to relation syntax.
 
 ## Important Notes
 
