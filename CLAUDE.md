@@ -413,8 +413,8 @@ PrismaClientLoader.load(projectPath, customPath, connectionData)
 
 **Parameters:**
 - `projectPath` (string): Project root directory path
-- `customPath` (string|null): Optional custom path to Prisma client (overrides default)
-- `connectionData` (object): Database connection configuration with properties:
+- `customPath` (string|null): Optional custom path to a Prisma client (overrides default)
+- `connectionData` (object|null): Optional database connection configuration with properties:
   - `client` (string): Database client type (mysql, postgresql, etc.)
   - `user` (string): Database username
   - `password` (string): Database password
@@ -426,13 +426,27 @@ PrismaClientLoader.load(projectPath, customPath, connectionData)
 
 **Behavior:**
 - If `customPath` is provided, uses that path
-- Otherwise uses default path: `projectPath/prisma/client`
+- Otherwise, uses a default path: `projectPath/prisma/client`
 - Validates that Prisma Client exists at the path
 - Requires `prismaModule.PrismaClient` export
-- Builds connection string from connectionData
-- Returns initialized PrismaClient with connection configuration
+- If `connectionData` is null: Uses default connection from Prisma schema datasource
+- If `connectionData` is provided: Builds custom connection string and overrides datasource
+- Returns initialized PrismaClient instance
 
-**Usage Example:**
+**Usage Examples:**
+
+Using the default connection from schema:
+```javascript
+const { PrismaClientLoader } = require('@reldens/storage');
+
+const prismaClient = PrismaClientLoader.load(process.cwd(), null, null);
+if(!prismaClient){
+    console.error('Failed to load Prisma client');
+    process.exit(1);
+}
+```
+
+Using custom connection:
 ```javascript
 const { PrismaClientLoader } = require('@reldens/storage');
 

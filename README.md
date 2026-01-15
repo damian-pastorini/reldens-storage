@@ -186,6 +186,18 @@ Note: The PrismaDataServer requires the Prisma schema to be generated first. Mak
 
 If you need to load a Prisma Client instance in your CLI tools or applications:
 
+Using the default connection from schema:
+```javascript
+const { PrismaClientLoader } = require('@reldens/storage');
+
+const prismaClient = PrismaClientLoader.load(process.cwd(), null, null);
+if(!prismaClient){
+    console.error('Failed to load Prisma client');
+    process.exit(1);
+}
+```
+
+Using custom connection:
 ```javascript
 const { PrismaClientLoader } = require('@reldens/storage');
 
@@ -210,8 +222,8 @@ if(!prismaClient){
 
 Parameters:
 - `projectPath`: Project root directory
-- `customPath`: Optional custom path to Prisma client (null for default)
-- `connectionData`: Database connection configuration object
+- `customPath`: Optional custom path to a Prisma client (null for default)
+- `connectionData`: Optional database connection configuration object (null to use schema default)
 
 ## Custom Drivers
 
