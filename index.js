@@ -19,6 +19,7 @@ const { MySQLTablesProvider } = require('./lib/mysql-tables-provider');
 const { PrismaDriver } = require('./lib/prisma/prisma-driver');
 const { PrismaDataServer } = require('./lib/prisma/prisma-data-server');
 const { PrismaSchemaGenerator } = require('./lib/prisma/prisma-schema-generator');
+const { PrismaClientLoader } = require('./lib/prisma/prisma-client-loader');
 
 module.exports = {
     // base:
@@ -46,6 +47,7 @@ module.exports = {
     PrismaDataServer,
     PrismaDriver,
     PrismaSchemaGenerator,
+    PrismaClientLoader,
     // entities:
     EntitiesGenerator,
     EntityProperties,

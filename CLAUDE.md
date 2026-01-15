@@ -111,6 +111,7 @@ npx reldens-storage-prisma --host=<host> --database=<db> --user=<user> --passwor
 - `prisma-metadata-loader.js`: Loads field metadata including defaults
 - `prisma-type-caster.js`: Type casting and normalization
 - `prisma-relation-resolver.js`: Relation mapping and transformations
+- `prisma-client-loader.js`: Utility for loading Prisma Client instances
 - Features:
   - Schema-first approach with auto-introspection
   - Type-safe queries with Prisma Client
@@ -212,24 +213,22 @@ Templates use placeholder replacement with `{{placeholderName}}` syntax.
 
 ## Generated File Structure
 
-```
-generated-entities/
-├── entities/
-│   ├── [table-name]-entity.js      # Entity definitions
-│   └── ...
-├── models/
-│   ├── objection-js/
-│   │   ├── [table-name]-model.js
-│   │   └── registered-models-objection-js.js
-│   ├── mikro-orm/
-│   │   ├── [table-name]-model.js
-│   │   └── registered-models-mikro-orm.js
-│   └── prisma/
-│       ├── [table-name]-model.js
-│       └── registered-models-prisma.js
-├── entities-config.js               # Entity relation configuration
-└── entities-translations.js         # Translation keys
-```
+All generated files are created in the **generated-entities/** directory:
+
+**Entity Definitions:**
+- entities/[table-name]-entity.js
+
+**Driver Models:**
+- models/objection-js/[table-name]-model.js
+- models/objection-js/registered-models-objection-js.js
+- models/mikro-orm/[table-name]-model.js
+- models/mikro-orm/registered-models-mikro-orm.js
+- models/prisma/[table-name]-model.js
+- models/prisma/registered-models-prisma.js
+
+**Configuration Files:**
+- entities-config.js (entity relation configuration)
+- entities-translations.js (translation keys)
 
 ## Relation Keys Pattern
 
@@ -398,3 +397,64 @@ The `prepareDataWithRelations()` method (lines 156-199) automatically converts F
 - `RELDENS_DB_PARAMS`: Database connection parameters (used by Prisma)
 - Format: `key1=value1&key2=value2`
 - Example: `authPlugin=mysql_native_password&sslmode=require`
+
+## PrismaClientLoader Utility
+
+**Location:** `lib/prisma/prisma-client-loader.js`
+
+**Purpose:** Shared utility for loading Prisma Client instances in CLI tools and applications.
+
+**Exported From Package:** Yes, available via `const { PrismaClientLoader } = require('@reldens/storage');`
+
+**Method:**
+```javascript
+PrismaClientLoader.load(projectPath, customPath, connectionData)
+```
+
+**Parameters:**
+- `projectPath` (string): Project root directory path
+- `customPath` (string|null): Optional custom path to Prisma client (overrides default)
+- `connectionData` (object): Database connection configuration with properties:
+  - `client` (string): Database client type (mysql, postgresql, etc.)
+  - `user` (string): Database username
+  - `password` (string): Database password
+  - `host` (string): Database host
+  - `port` (number): Database port
+  - `database` (string): Database name
+
+**Returns:** PrismaClient instance or null on error
+
+**Behavior:**
+- If `customPath` is provided, uses that path
+- Otherwise uses default path: `projectPath/prisma/client`
+- Validates that Prisma Client exists at the path
+- Requires `prismaModule.PrismaClient` export
+- Builds connection string from connectionData
+- Returns initialized PrismaClient with connection configuration
+
+**Usage Example:**
+```javascript
+const { PrismaClientLoader } = require('@reldens/storage');
+
+const prismaClient = PrismaClientLoader.load(
+    process.cwd(),
+    null,
+    {
+        client: 'mysql',
+        user: 'dbuser',
+        password: 'dbpass',
+        host: 'localhost',
+        port: 3306,
+        database: 'mydb'
+    }
+);
+
+if(!prismaClient){
+    console.error('Failed to load Prisma client');
+    process.exit(1);
+}
+```
+
+**Used By:**
+- `bin/reldens-storage.js`: CLI entity generator
+- External packages: `@reldens/cms` CLI tools (update-password, generate-entities, generate-sitemap)

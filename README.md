@@ -182,6 +182,37 @@ const entities = server.generateEntities();
 
 Note: The PrismaDataServer requires the Prisma schema to be generated first. Make sure to run the `reldens-generate-prisma-schema` command before using PrismaDataServer.
 
+### Loading Prisma Client Programmatically
+
+If you need to load a Prisma Client instance in your CLI tools or applications:
+
+```javascript
+const { PrismaClientLoader } = require('@reldens/storage');
+
+const prismaClient = PrismaClientLoader.load(
+    process.cwd(),
+    null,
+    {
+        client: 'mysql',
+        user: 'dbuser',
+        password: 'dbpass',
+        host: 'localhost',
+        port: 3306,
+        database: 'mydb'
+    }
+);
+
+if(!prismaClient){
+    console.error('Failed to load Prisma client');
+    process.exit(1);
+}
+```
+
+Parameters:
+- `projectPath`: Project root directory
+- `customPath`: Optional custom path to Prisma client (null for default)
+- `connectionData`: Database connection configuration object
+
 ## Custom Drivers
 
 You can create custom storage drivers by extending the base classes:
@@ -237,28 +268,28 @@ All drivers must implement the methods defined in `BaseDriver`:
 
 ## Generated File Structure
 
-When you run entity generation, files are created in the `generated-entities/` directory:
+When you run entity generation, all files are created in the **generated-entities/** directory:
 
-```
-generated-entities/
-├── entities/
-│   ├── users-entity.js           # Entity definitions with properties
-│   ├── players-entity.js
-│   └── ...
-├── models/
-│   ├── objection-js/
-│   │   ├── users-model.js        # ObjectionJS models with relationMappings
-│   │   ├── players-model.js
-│   │   └── registered-models-objection-js.js
-│   ├── mikro-orm/
-│   │   ├── users-model.js        # MikroORM models
-│   │   └── registered-models-mikro-orm.js
-│   └── prisma/
-│       ├── users-model.js        # Prisma models with relationTypes
-│       └── registered-models-prisma.js
-├── entities-config.js            # Entity configuration and relations
-└── entities-translations.js      # i18n translation keys
-```
+**Entity Definitions:**
+- entities/users-entity.js
+- entities/players-entity.js
+
+**ObjectionJS Models:**
+- models/objection-js/users-model.js
+- models/objection-js/players-model.js
+- models/objection-js/registered-models-objection-js.js
+
+**MikroORM Models:**
+- models/mikro-orm/users-model.js
+- models/mikro-orm/registered-models-mikro-orm.js
+
+**Prisma Models:**
+- models/prisma/users-model.js
+- models/prisma/registered-models-prisma.js
+
+**Configuration Files:**
+- entities-config.js (entity relations)
+- entities-translations.js (i18n keys)
 
 ### Entity Files
 - **Entity classes**: Define properties, types, validations

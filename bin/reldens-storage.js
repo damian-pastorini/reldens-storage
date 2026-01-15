@@ -7,7 +7,7 @@
  */
 
 const { EntitiesGenerator } = require('../lib/entities-generator');
-const { FileHandler } = require('@reldens/server-utils');
+const { PrismaClientLoader } = require('../lib/prisma/prisma-client-loader');
 const { Logger, sc } = require('@reldens/utils');
 
 class StorageEntitiesGenerator
@@ -113,32 +113,11 @@ class StorageEntitiesGenerator
 
     loadPrismaClient(connectionData)
     {
-        let prismaClientPath = this.prismaClientPath;
-        if(!prismaClientPath){
-            prismaClientPath = FileHandler.joinPaths(this.projectPath, 'prisma', 'client');
-        }
-        if(!FileHandler.exists(prismaClientPath)){
-            Logger.critical('PrismaClient path does not exist: '+prismaClientPath);
+        let loadedClient = PrismaClientLoader.load(this.projectPath, this.prismaClientPath, connectionData);
+        if(!loadedClient){
             Logger.info('Please run "npx prisma generate" first or provide --prismaClientPath argument.');
-            return null;
         }
-        Logger.info('Loading PrismaClient from: '+prismaClientPath);
-        let prismaModule = require(prismaClientPath);
-        if(!prismaModule.PrismaClient){
-            Logger.critical('PrismaClient class not found at: '+prismaClientPath);
-            return null;
-        }
-        let connectionString = connectionData.client+'://'
-            +connectionData.user
-            +(connectionData.password ? ':'+connectionData.password : '')
-            +'@'+connectionData.host
-            +':'+connectionData.port
-            +'/'+connectionData.database;
-        Logger.info('Creating PrismaClient with connection to: '+connectionData.database);
-        return new prismaModule.PrismaClient({
-            datasources: {db: {url: connectionString}},
-            log: ['error']
-        });
+        return loadedClient;
     }
 
     async run()
