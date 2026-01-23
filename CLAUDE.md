@@ -2,6 +2,24 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+## ⚠️ CRITICAL: The Library Works - Fix The Tests
+
+**This package is battle-tested in hundreds of production projects handling thousands of API calls successfully.**
+
+**Default Assumption: Tests are failing because TEST CODE is incorrect, NOT because library code is broken.**
+
+**Your Primary Task:**
+- Fix test files in `tests/` directory to properly use the library
+- Study working examples from reldens-cms and reldens main project
+- Make all tests pass by correcting how they call the library APIs
+
+**If You Suspect a Library Bug:**
+- Present complete proof with production evidence
+- Wait for user confirmation before proposing any library changes
+- Do NOT modify `lib/` code without explicit approval
+
+---
+
 ## Package Overview
 
 **@reldens/storage** is the database abstraction layer for Reldens. It provides:
@@ -52,6 +70,7 @@ npx reldens-storage-prisma --host=<host> --database=<db> --user=<user> --passwor
 **BaseDriver** (`lib/base-driver.js`):
 - Abstract base class for ORM drivers
 - Provides common interface for all database operations
+- Stores operator mapping for all drivers (`this.operatorsMap`)
 - Key methods (all must be implemented by drivers):
   - CRUD: `create()`, `update()`, `delete()`, `upsert()`
   - Read: `load()`, `loadById()`, `loadAll()`, `loadOne()`
@@ -59,6 +78,9 @@ npx reldens-storage-prisma --host=<host> --database=<db> --user=<user> --passwor
   - Count: `count()`, `countWithRelations()`
   - Query: `rawQuery()`, `executeCustomQuery()`
   - Helpers: `parseRelationsString()`, `isJsonField()`
+- **Operator Mapping**: Maps string operators to SQL operators
+  - `GT` → `>`, `GTE` → `>=`, `LT` → `<`, `LTE` → `<=`, `NE` → `!=`, `EQ` → `=`
+  - Available to all drivers via `this.operatorsMap`
 
 **BaseDataServer** (`lib/base-data-server.js`):
 - Abstract base class for data servers
@@ -93,8 +115,11 @@ npx reldens-storage-prisma --host=<host> --database=<db> --user=<user> --passwor
   - Uses `withGraphFetched()` for eager loading
   - Supports relation modifiers (orderBy, limit)
   - JSON field handling with `castText()` for LIKE queries
-  - Filter operators: OR, IN, NOT, LIKE
+  - **Filter operators** (case-insensitive): OR, IN, NOT, LIKE, GT, GTE, LT, LTE, NE, EQ
+  - **Operator conversion**: String operators converted to uppercase before processing
+  - **Nested filtering**: AND/OR operators support nested conditions with proper SQL grouping
   - Methods: `appendFilters()`, `appendRelationsToQuery()`
+  - **Upsert behavior**: Check if record exists → update if found, create if not
 
 **MikroORM Driver** (`lib/mikro-orm/`):
 - `mikro-orm-driver.js`: Driver implementation
@@ -122,6 +147,8 @@ npx reldens-storage-prisma --host=<host> --database=<db> --user=<user> --passwor
   - Binary targets configuration
   - Data proxy support
   - Windows permission error handling
+  - **Prisma.DbNull handling**: PrismaDataServer passes `Prisma.DbNull` to driver, which passes it to type caster
+  - **Type caster isolation**: PrismaTypeCaster never requires `@prisma/client` directly, receives `prismaDbNull` as prop
 
 ### Generators
 
@@ -472,3 +499,95 @@ if(!prismaClient){
 **Used By:**
 - `bin/reldens-storage.js`: CLI entity generator
 - External packages: `@reldens/cms` CLI tools (update-password, generate-entities, generate-sitemap)
+
+## Test Suite Architecture
+
+**CRITICAL:** For detailed test suite architecture, execution flow, and lifecycle hooks, see: `.claude/test-architecture.md`
+
+### The Golden Rule: Connect Once, Test Many
+
+**DO NOT** create database connections, tables, or entities in `beforeEach()` hooks. These operations happen **ONCE per driver** in `before()` hooks.
+
+**Correct test lifecycle:**
+1. `before()` hook - RUNS ONCE per driver:
+   - Connect to database
+   - Create tables via SQL
+   - Generate entities (introspects database, creates models)
+   - For Prisma: Generate schema → Generate client → Reconnect
+   - Get repository references
+
+2. `beforeEach()` hook - RUNS BEFORE EACH TEST:
+   - DELETE data from tables (fast cleanup)
+   - Never drop/recreate tables
+   - Never reconnect to database
+
+3. `after()` hook - RUNS ONCE per driver:
+   - DROP all tables
+   - Disconnect from database
+
+### Test Database Operations
+
+- **cleanDatabase()**: Uses DELETE statements to clear data between tests (fast)
+- **dropTestTables()**: Uses DROP TABLE statements for final cleanup (slow, runs once)
+- **executeRawSQL()**: Creates tables from SQL schema file (slow, runs once)
+
+### DataServer Flow
+
+All three drivers follow this pattern:
+
+```
+1. new DataServer({config, rawEntities})
+   ↓
+2. await dataServer.connect()
+   ↓
+3. await executeRawSQL(dataServer, schemaSql)  ← Tables must exist before next step
+   ↓
+4. await generateTestEntities(dataServer, driverName)
+   ├─ Introspects database schema
+   ├─ Creates models from tables
+   ├─ [Prisma only]: Generate schema + client + reconnect
+   └─ Calls dataServer.generateEntities()
+   ↓
+5. dataServer.getEntity('entityName')  ← Returns repository
+```
+
+### Why Tables Must Exist Before Entity Generation
+
+- `generateTestEntities()` calls `fetchEntitiesFromDatabase()`
+- This queries MySQL `information_schema` for actual table structures
+- Without tables, introspection returns empty/null
+- Entity generation fails without table metadata
+
+### Prisma Special Handling
+
+Prisma requires additional subprocess steps during entity generation:
+
+1. Generate `schema.prisma` file from database (subprocess: `npx reldens-storage-prisma`)
+2. Generate PrismaClient code (subprocess: `npx prisma generate`)
+3. Disconnect old client
+4. Clear Node.js module cache
+5. Reconnect with newly generated client
+6. Now PrismaClient has models for the current database schema
+
+This happens ONCE during the `before()` hook inside `generateTestEntities()`.
+
+**For critical patterns including:**
+- Why tests use dynamic models (not generated models)
+- Prisma client loading pattern
+- Common pitfalls and solutions
+
+**See:** `.claude/test-architecture.md` - Critical Patterns section
+
+### Test Files
+
+**Integration tests:**
+- `tests/integration/test-cross-driver-compatibility.js`: Full CRUD cycle for all 3 drivers
+- `tests/integration/test-nested-filters.js`: Complex filter syntax (AND/OR/NOT/IN/LIKE)
+- `tests/integration/test-relations.js`: Relation loading and nested relations
+
+**Test helpers:**
+- `tests/utils/test-helpers.js`: Database setup, entity generation, cleanup utilities
+
+**All integration test files use the correct lifecycle pattern as of 2026-01-18.**
+
+For complete details on test architecture, common issues, performance comparison, and troubleshooting, see `.claude/test-architecture.md`.
