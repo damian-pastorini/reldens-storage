@@ -10,6 +10,10 @@ const { run } = require('node:test');
 const { spec } = require('node:test/reporters');
 const { TestHelpers } = require('./utils/test-helpers');
 const { OutputFilter } = require('./utils/custom-reporter');
+const { DriverRegistry } = require('./utils/driver-registry');
+const DriversTest = require('./integration/test-drivers');
+const NestedFiltersTest = require('./integration/test-nested-filters');
+const RelationsTest = require('./integration/test-relations');
 
 if(!process.env.RELDENS_TEST_DB_HOST){
     let envPath = FileHandler.joinPaths(__dirname, '.env.test');
@@ -67,13 +71,39 @@ async function runTests()
     }
     process.stderr.write('Found '+testFiles.length+' test file(s)\n\n');
     let hasIntegrationTests = testFiles.some(file => file.includes('integration'));
-    let useConcurrency = !hasIntegrationTests;
-    if(!useConcurrency){
-        process.stderr.write('Concurrency disabled for integration tests (shared database)\n\n');
+    let hasUnitTests = testFiles.some(file => file.includes('unit'));
+    process.stderr.write('Integration tests: '+(hasIntegrationTests ? 'YES' : 'NO')+'\n');
+    process.stderr.write('Unit tests: '+(hasUnitTests ? 'YES' : 'NO')+'\n\n');
+    await DriverRegistry.initialize();
+    if(hasIntegrationTests){
+        process.stderr.write('Registering integration test classes with Node test runner...\n');
+        let driverNames = ['objection-js', 'mikro-orm', 'prisma'];
+        for(let driverName of driverNames){
+            let dataServer = DriverRegistry.getDriver(driverName);
+            let repos = DriverRegistry.getRepos(driverName);
+            if(!dataServer || !repos){
+                Logger.warning('Skipping tests for '+driverName+' (driver not initialized)');
+                continue;
+            }
+            Logger.info('Registering test classes for driver: '+driverName);
+            let driversTest = new DriversTest(dataServer, repos, driverName);
+            driversTest.run();
+            let nestedFiltersTest = new NestedFiltersTest(dataServer, repos, driverName);
+            nestedFiltersTest.run();
+            let relationsTest = new RelationsTest(dataServer, repos, driverName);
+            relationsTest.run();
+        }
+        process.stderr.write('Integration test classes registered\n\n');
     }
+    let filesToLoad = [];
+    if(hasUnitTests){
+        filesToLoad = testFiles.filter(file => file.includes('unit'));
+        process.stderr.write('Unit test files to load: '+filesToLoad.length+'\n\n');
+    }
+    process.stderr.write('Starting test runner to execute ALL tests...\n');
     let testStream = run({
-        files: testFiles,
-        concurrency: useConcurrency
+        files: filesToLoad,
+        concurrency: false
     });
     let outputFilter = new OutputFilter();
     testStream.compose(spec).pipe(outputFilter).pipe(process.stdout);
@@ -83,7 +113,7 @@ async function runTests()
     await new Promise((resolve) => {
         testStream.on('end', resolve);
     });
-    TestHelpers.cleanupGeneratedFiles();
+    await DriverRegistry.cleanup();
     setTimeout(() => {
         process.stderr.write('\nForce exiting after 5 seconds (connections may still be open)\n');
         process.exit(process.exitCode || 0);
