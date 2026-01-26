@@ -81,10 +81,6 @@ async function runTests()
         for(let driverName of driverNames){
             let dataServer = DriverRegistry.getDriver(driverName);
             let repos = DriverRegistry.getRepos(driverName);
-            if(!dataServer || !repos){
-                Logger.warning('Skipping tests for '+driverName+' (driver not initialized)');
-                continue;
-            }
             Logger.info('Registering test classes for driver: '+driverName);
             let driversTest = new DriversTest(dataServer, repos, driverName);
             driversTest.run();
@@ -97,12 +93,15 @@ async function runTests()
     }
     let filesToLoad = [];
     if(hasUnitTests){
-        filesToLoad = testFiles.filter(file => file.includes('unit'));
-        process.stderr.write('Unit test files to load: '+filesToLoad.length+'\n\n');
+        filesToLoad = testFiles.filter(file => file.includes('unit') && !file.includes('test-entities-generator'));
+        process.stderr.write('Unit test files to load: '+filesToLoad.length+'\n');
+        for(let unitTestFile of filesToLoad){
+            require(unitTestFile);
+        }
+        process.stderr.write('Unit test files loaded: '+filesToLoad.length+'\n\n');
     }
-    process.stderr.write('Starting test runner to execute ALL tests...\n');
+    process.stderr.write('Starting test runner to execute ALL registered tests...\n');
     let testStream = run({
-        files: filesToLoad,
         concurrency: false
     });
     let outputFilter = new OutputFilter();
