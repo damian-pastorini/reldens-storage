@@ -5,8 +5,7 @@
  *
  */
 
-const { describe, it, after } = require('node:test');
-const assert = require('node:assert');
+const { TestRunner, assert } = require('../utils/test-runner');
 const { ObjectionJsDriver } = require('../../lib/objection-js/objection-js-driver');
 const { MikroOrmDriver } = require('../../lib/mikro-orm/mikro-orm-driver');
 const { PrismaDriver } = require('../../lib/prisma/prisma-driver');
@@ -14,17 +13,15 @@ const { PrismaDriver } = require('../../lib/prisma/prisma-driver');
 class DriversUnitTest
 {
 
-    run()
+    constructor()
     {
-        let counter = 0;
-        let errors = 0;
-        return new Promise((resolve) => {
-            let DRIVERS = [
+        this.runner = new TestRunner();
+        this.DRIVERS = [
             {name: 'objection-js', class: ObjectionJsDriver},
             {name: 'mikro-orm', class: MikroOrmDriver},
             {name: 'prisma', class: PrismaDriver}
         ];
-        let SHARED_PUBLIC_METHODS = [
+        this.SHARED_PUBLIC_METHODS = [
             'databaseName',
             'id',
             'name',
@@ -62,27 +59,25 @@ class DriversUnitTest
             'restoreEntityState',
             'loadEntityData'
         ];
-        for(let driver of DRIVERS){
-            describe('Driver: '+driver.name, () => {
-                describe('Shared public methods', () => {
-                    for(let methodName of SHARED_PUBLIC_METHODS){
-                        it('should have method '+methodName, () => {
-                            try {
-                                assert.strictEqual(typeof driver.class.prototype[methodName], 'function', driver.name+' should implement '+methodName);
-                                counter++;
-                            } catch(error) {
-                                errors++;
-                                throw error;
-                            }
-                        });
-                    }
-                });
+    }
+
+    async run()
+    {
+        this.runner.suite('Drivers Unit Test');
+        for(let driver of this.DRIVERS){
+            await this.testDriverMethods(driver);
+        }
+        return this.runner.getResults();
+    }
+
+    async testDriverMethods(driver)
+    {
+        this.runner.group('Driver: '+driver.name+' - Shared public methods');
+        for(let methodName of this.SHARED_PUBLIC_METHODS){
+            await this.runner.test('should have method '+methodName, async () => {
+                assert.strictEqual(typeof driver.class.prototype[methodName], 'function', driver.name+' should implement '+methodName);
             });
         }
-        after(() => {
-            resolve({counter, errors});
-        });
-        });
     }
 
 }

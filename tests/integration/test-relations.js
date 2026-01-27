@@ -5,8 +5,7 @@
  *
  */
 
-const { describe, it, before, beforeEach, after } = require('node:test');
-const assert = require('node:assert');
+const { TestRunner, assert } = require('../utils/test-runner');
 const { TestHelpers } = require('../utils/test-helpers');
 const { CategoriesFixtures } = require('../fixtures/categories-fixtures');
 const { ProductsFixtures } = require('../fixtures/products-fixtures');
@@ -22,427 +21,262 @@ class RelationsTest
         this.productsRepo = repos.testProducts;
         this.reviewsRepo = repos.testReviews;
         this.driverName = driverName;
+        this.runner = new TestRunner();
     }
 
-    run()
+    async run()
     {
-        let counter = 0;
-        let errors = 0;
-        return new Promise((resolve) => {
-            describe('Relations - Driver: '+this.driverName, () => {
-                describe('loadWithRelations', () => {
-                    before(async () => {
-                        await TestHelpers.cleanDatabase(this.dataServer);
-                    });
-                    beforeEach(async () => {
-                    let cat1 = CategoriesFixtures[this.driverName].category1;
-                    await this.categoriesRepo.create(cat1);
-                    let prod1 = ProductsFixtures[this.driverName].product1;
-                    await this.productsRepo.create(prod1);
-                    let rev1 = ReviewsFixtures[this.driverName].review1;
-                    await this.reviewsRepo.create(rev1);
-                });
-                it('should load records with single relation', async () => {
-                    try {
-                        let cat1 = CategoriesFixtures[this.driverName].category1;
-                        let results = await this.categoriesRepo.loadWithRelations({id: cat1.id}, ['related_products']);
-                        assert.ok(results);
-                        assert.ok(results.length > 0);
-                        let category = results[0];
-                        assert.ok(category.related_products);
-                        assert.ok(Array.isArray(category.related_products));
-                        assert.strictEqual(category.related_products.length, 1);
-                        counter++;
-                    } catch(error) {
-                        errors++;
-                        throw error;
-                    }
-                });
-                it('should load records with multiple relations', async () => {
-                    try {
-                        let prod1 = ProductsFixtures[this.driverName].product1;
-                        let results = await this.productsRepo.loadWithRelations(
-                            {id: prod1.id},
-                            ['related_categories', 'related_reviews']
-                        );
-                        assert.ok(results);
-                        assert.ok(results.length > 0);
-                        let product = results[0];
-                        assert.ok(product.related_categories);
-                        assert.ok(product.related_reviews);
-                        assert.ok(Array.isArray(product.related_reviews));
-                        counter++;
-                    } catch(error) {
-                        errors++;
-                        throw error;
-                    }
-                });
-                it('should load with empty filters', async () => {
-                    try {
-                        let results = await this.categoriesRepo.loadWithRelations({}, ['related_products']);
-                        assert.ok(results);
-                        assert.strictEqual(results.length, 1);
-                        counter++;
-                    } catch(error) {
-                        errors++;
-                        throw error;
-                    }
-                });
-            });
-            describe('loadAllWithRelations', () => {
-                before(async () => {
-                    await TestHelpers.cleanDatabase(this.dataServer);
-                });
-                beforeEach(async () => {
-                    let cat1 = CategoriesFixtures[this.driverName].category1;
-                    let cat2 = CategoriesFixtures[this.driverName].category2;
-                    await this.categoriesRepo.create(cat1);
-                    await this.categoriesRepo.create(cat2);
-                    let prod1 = ProductsFixtures[this.driverName].product1;
-                    let prod2 = ProductsFixtures[this.driverName].product2;
-                    await this.productsRepo.create(prod1);
-                    await this.productsRepo.create(prod2);
-                });
-                it('should load all records with relations', async () => {
-                    try {
-                        let results = await this.categoriesRepo.loadAllWithRelations(['related_products']);
-                        assert.ok(results);
-                        assert.strictEqual(results.length, 2);
-                        for(let category of results){
-                            assert.ok(category.related_products);
-                            assert.ok(Array.isArray(category.related_products));
-                        }
-                        counter++;
-                    } catch(error) {
-                        errors++;
-                        throw error;
-                    }
-                });
-                it('should respect limit with relations', async () => {
-                    try {
-                        this.categoriesRepo.limit = 1;
-                        let results = await this.categoriesRepo.loadAllWithRelations(['related_products']);
-                        assert.strictEqual(results.length, 1);
-                        assert.ok(results[0].related_products);
-                        counter++;
-                    } catch(error) {
-                        errors++;
-                        throw error;
-                    }
-                });
-                it('should respect sortBy with relations', async () => {
-                    try {
-                        this.categoriesRepo.sortBy = 'name';
-                        this.categoriesRepo.sortDirection = 'DESC';
-                        let results = await this.categoriesRepo.loadAllWithRelations(['related_products']);
-                        assert.ok(results.length > 0);
-                        assert.ok(results[0].related_products);
-                        counter++;
-                    } catch(error) {
-                        errors++;
-                        throw error;
-                    }
-                });
-            });
-            describe('loadByWithRelations', () => {
-                before(async () => {
-                    await TestHelpers.cleanDatabase(this.dataServer);
-                });
-                beforeEach(async () => {
-                    let cat1 = CategoriesFixtures[this.driverName].category1;
-                    await this.categoriesRepo.create(cat1);
-                    let prod1 = ProductsFixtures[this.driverName].product1;
-                    await this.productsRepo.create(prod1);
-                });
-                it('should load records by field with relations', async () => {
-                    try {
-                        let cat1 = CategoriesFixtures[this.driverName].category1;
-                        let results = await this.categoriesRepo.loadByWithRelations('slug', cat1.slug, ['related_products']);
-                        assert.ok(results);
-                        assert.ok(results.length > 0);
-                        let category = results[0];
-                        assert.strictEqual(category.slug, cat1.slug);
-                        assert.ok(category.related_products);
-                        assert.ok(Array.isArray(category.related_products));
-                        counter++;
-                    } catch(error) {
-                        errors++;
-                        throw error;
-                    }
-                });
-                it('should return empty array when no match with relations', async () => {
-                    try {
-                        let results = await this.categoriesRepo.loadByWithRelations('slug', 'nonexistent', ['related_products']);
-                        assert.ok(results);
-                        assert.strictEqual(results.length, 0);
-                        counter++;
-                    } catch(error) {
-                        errors++;
-                        throw error;
-                    }
-                });
-            });
-            describe('loadByIdWithRelations', () => {
-                before(async () => {
-                    await TestHelpers.cleanDatabase(this.dataServer);
-                });
-                beforeEach(async () => {
-                    let cat1 = CategoriesFixtures[this.driverName].category1;
-                    await this.categoriesRepo.create(cat1);
-                    let prod1 = ProductsFixtures[this.driverName].product1;
-                    let prod2 = ProductsFixtures[this.driverName].product2;
-                    await this.productsRepo.create(prod1);
-                    await this.productsRepo.create(prod2);
-                });
-                it('should load single record by ID with relations', async () => {
-                    try {
-                        let cat1 = CategoriesFixtures[this.driverName].category1;
-                        let result = await this.categoriesRepo.loadByIdWithRelations(cat1.id, ['related_products']);
-                        assert.ok(result);
-                        assert.strictEqual(result.id, cat1.id);
-                        assert.ok(result.related_products);
-                        assert.ok(Array.isArray(result.related_products));
-                        assert.strictEqual(result.related_products.length, 2);
-                        counter++;
-                    } catch(error) {
-                        errors++;
-                        throw error;
-                    }
-                });
-                it('should return null when ID not found with relations', async () => {
-                    try {
-                        let result = await this.categoriesRepo.loadByIdWithRelations(99999, ['related_products']);
-                        assert.ok(!result);
-                        counter++;
-                    } catch(error) {
-                        errors++;
-                        throw error;
-                    }
-                });
-            });
-            describe('loadOneWithRelations', () => {
-                before(async () => {
-                    await TestHelpers.cleanDatabase(this.dataServer);
-                });
-                beforeEach(async () => {
-                    let cat1 = CategoriesFixtures[this.driverName].category1;
-                    let cat2 = CategoriesFixtures[this.driverName].category2;
-                    await this.categoriesRepo.create(cat1);
-                    await this.categoriesRepo.create(cat2);
-                    let prod1 = ProductsFixtures[this.driverName].product1;
-                    await this.productsRepo.create(prod1);
-                });
-                it('should load one record with relations', async () => {
-                    try {
-                        let result = await this.categoriesRepo.loadOneWithRelations({is_active: 1}, ['related_products']);
-                        assert.ok(result);
-                        assert.strictEqual(result.is_active, 1);
-                        assert.ok(result.related_products);
-                        assert.ok(Array.isArray(result.related_products));
-                        counter++;
-                    } catch(error) {
-                        errors++;
-                        throw error;
-                    }
-                });
-                it('should return null when no match with relations', async () => {
-                    try {
-                        let result = await this.categoriesRepo.loadOneWithRelations({slug: 'nonexistent'}, ['related_products']);
-                        assert.ok(!result);
-                        counter++;
-                    } catch(error) {
-                        errors++;
-                        throw error;
-                    }
-                });
-            });
-            describe('loadOneByWithRelations', () => {
-                before(async () => {
-                    await TestHelpers.cleanDatabase(this.dataServer);
-                });
-                beforeEach(async () => {
-                    let cat1 = CategoriesFixtures[this.driverName].category1;
-                    await this.categoriesRepo.create(cat1);
-                    let prod1 = ProductsFixtures[this.driverName].product1;
-                    await this.productsRepo.create(prod1);
-                });
-                it('should load one record by field with relations', async () => {
-                    try {
-                        let cat1 = CategoriesFixtures[this.driverName].category1;
-                        let result = await this.categoriesRepo.loadOneByWithRelations('slug', cat1.slug, ['related_products']);
-                        assert.ok(result);
-                        assert.strictEqual(result.slug, cat1.slug);
-                        assert.ok(result.related_products);
-                        assert.ok(Array.isArray(result.related_products));
-                        counter++;
-                    } catch(error) {
-                        errors++;
-                        throw error;
-                    }
-                });
-                it('should return null when no match by field with relations', async () => {
-                    try {
-                        let result = await this.categoriesRepo.loadOneByWithRelations('slug', 'nonexistent', ['related_products']);
-                        assert.ok(!result);
-                        counter++;
-                    } catch(error) {
-                        errors++;
-                        throw error;
-                    }
-                });
-            });
-            describe('countWithRelations', () => {
-                before(async () => {
-                    await TestHelpers.cleanDatabase(this.dataServer);
-                });
-                beforeEach(async () => {
-                    let cat1 = CategoriesFixtures[this.driverName].category1;
-                    let cat2 = CategoriesFixtures[this.driverName].category2;
-                    let cat3 = CategoriesFixtures[this.driverName].category3;
-                    await this.categoriesRepo.create(cat1);
-                    await this.categoriesRepo.create(cat2);
-                    await this.categoriesRepo.create(cat3);
-                    let prod1 = ProductsFixtures[this.driverName].product1;
-                    await this.productsRepo.create(prod1);
-                });
-                it('should count records with relation filter', async () => {
-                    try {
-                        let count = await this.categoriesRepo.countWithRelations({is_active: 1}, ['related_products']);
-                        assert.strictEqual(count, 2);
-                        counter++;
-                    } catch(error) {
-                        errors++;
-                        throw error;
-                    }
-                });
-                it('should count all records with relations', async () => {
-                    try {
-                        let count = await this.categoriesRepo.countWithRelations({}, ['related_products']);
-                        assert.strictEqual(count, 3);
-                        counter++;
-                    } catch(error) {
-                        errors++;
-                        throw error;
-                    }
-                });
-            });
-            describe('createWithRelations', () => {
-                beforeEach(async () => {
-                    await TestHelpers.cleanDatabase(this.dataServer);
-                });
-                it('should create record with nested relations', async () => {
-                    try {
-                        let cat1 = CategoriesFixtures[this.driverName].category1;
-                        let prod1 = ProductsFixtures[this.driverName].product1;
-                        let categoryWithProducts = {
-                            ...cat1,
-                            related_products: [prod1]
-                        };
-                        let created = await this.categoriesRepo.createWithRelations(categoryWithProducts, ['related_products']);
-                        assert.ok(created);
-                        assert.strictEqual(created.id, cat1.id);
-                        let loaded = await this.categoriesRepo.loadByIdWithRelations(cat1.id, ['related_products']);
-                        assert.ok(loaded);
-                        assert.ok(loaded.related_products);
-                        assert.ok(loaded.related_products.length > 0);
-                        counter++;
-                    } catch(error) {
-                        errors++;
-                        throw error;
-                    }
-                });
-                it('should create record without relations when not provided', async () => {
-                    try {
-                        let cat1 = CategoriesFixtures[this.driverName].category1;
-                        let created = await this.categoriesRepo.createWithRelations(cat1, ['related_products']);
-                        assert.ok(created);
-                        assert.strictEqual(created.id, cat1.id);
-                        counter++;
-                    } catch(error) {
-                        errors++;
-                        throw error;
-                    }
-                });
-            });
-            describe('Nested Relations', () => {
-                before(async () => {
-                    await TestHelpers.cleanDatabase(this.dataServer);
-                });
-                beforeEach(async () => {
-                    let cat1 = CategoriesFixtures[this.driverName].category1;
-                    await this.categoriesRepo.create(cat1);
-                    let prod1 = ProductsFixtures[this.driverName].product1;
-                    await this.productsRepo.create(prod1);
-                    let rev1 = ReviewsFixtures[this.driverName].review1;
-                    await this.reviewsRepo.create(rev1);
-                });
-                it('should load nested relations (category > products > reviews)', async () => {
-                    try {
-                        let cat1 = CategoriesFixtures[this.driverName].category1;
-                        let results = await this.categoriesRepo.loadWithRelations(
-                            {id: cat1.id},
-                            ['related_products.related_reviews']
-                        );
-                        assert.ok(results);
-                        assert.ok(results.length > 0);
-                        let category = results[0];
-                        assert.ok(category.related_products);
-                        assert.ok(category.related_products.length > 0);
-                        let product = category.related_products[0];
-                        assert.ok(product.related_reviews);
-                        counter++;
-                    } catch(error) {
-                        errors++;
-                        throw error;
-                    }
-                });
-            });
-            describe('Relation String Parsing', () => {
-                beforeEach(async () => {
-                    await TestHelpers.cleanDatabase(this.dataServer);
-                });
-                it('should parse comma-separated relations string', async () => {
-                    try {
-                        let cat1 = CategoriesFixtures[this.driverName].category1;
-                        await this.categoriesRepo.create(cat1);
-                        let prod1 = ProductsFixtures[this.driverName].product1;
-                        await this.productsRepo.create(prod1);
-                        let results = await this.productsRepo.loadWithRelations(
-                            {id: prod1.id},
-                            'related_categories,related_reviews'
-                        );
-                        assert.ok(results);
-                        assert.ok(results.length > 0);
-                        counter++;
-                    } catch(error) {
-                        errors++;
-                        throw error;
-                    }
-                });
-                it('should handle single relation as string', async () => {
-                    try {
-                        let cat1 = CategoriesFixtures[this.driverName].category1;
-                        await this.categoriesRepo.create(cat1);
-                        let prod1 = ProductsFixtures[this.driverName].product1;
-                        await this.productsRepo.create(prod1);
-                        let results = await this.productsRepo.loadWithRelations(
-                            {id: prod1.id},
-                            'related_categories'
-                        );
-                        assert.ok(results);
-                        assert.ok(results.length > 0);
-                        assert.ok(results[0].related_categories);
-                        counter++;
-                    } catch(error) {
-                        errors++;
-                        throw error;
-                    }
-                });
-            });
-            after(() => {
-                resolve({counter, errors});
-            });
+        this.runner.suite('Relations - Driver: '+this.driverName);
+        await this.testLoadWithRelations();
+        await this.testLoadAllWithRelations();
+        await this.testLoadByWithRelations();
+        await this.testLoadByIdWithRelations();
+        await this.testLoadOneWithRelations();
+        await this.testLoadOneByWithRelations();
+        await this.testCountWithRelations();
+        await this.testCreateWithRelations();
+        await this.testNestedRelations();
+        await this.testRelationStringParsing();
+        return this.runner.getResults();
+    }
+
+    async testLoadWithRelations()
+    {
+        this.runner.group('loadWithRelations');
+        await TestHelpers.cleanDatabase(this.dataServer);
+        await this.categoriesRepo.create(CategoriesFixtures.category_relations_1);
+        await this.productsRepo.create(ProductsFixtures.product_relations_1);
+        await this.reviewsRepo.create(ReviewsFixtures.review_relations_1);
+        await this.runner.test('should load records with single relation', async () => {
+            let results = await this.categoriesRepo.loadWithRelations({id: 1600}, ['related_products']);
+            assert.ok(results);
+            assert.ok(results.length > 0);
+            let category = results[0];
+            assert.ok(category.related_products);
+            assert.ok(Array.isArray(category.related_products));
+            assert.strictEqual(category.related_products.length, 1);
         });
+        await this.runner.test('should load records with multiple relations', async () => {
+            let results = await this.productsRepo.loadWithRelations(
+                {id: 2600},
+                ['related_categories', 'related_reviews']
+            );
+            assert.ok(results);
+            assert.ok(results.length > 0);
+            let product = results[0];
+            assert.ok(product.related_categories);
+            assert.ok(product.related_reviews);
+            assert.ok(Array.isArray(product.related_reviews));
+        });
+        await this.runner.test('should load with empty filters', async () => {
+            let results = await this.categoriesRepo.loadWithRelations({}, ['related_products']);
+            assert.ok(results);
+            assert.strictEqual(results.length, 1);
+        });
+    }
+
+    async testLoadAllWithRelations()
+    {
+        this.runner.group('loadAllWithRelations');
+        await TestHelpers.cleanDatabase(this.dataServer);
+        await this.categoriesRepo.create(CategoriesFixtures.category_relations_1);
+        await this.categoriesRepo.create(CategoriesFixtures.category_relations_2);
+        await this.productsRepo.create(ProductsFixtures.product_relations_1);
+        await this.productsRepo.create(ProductsFixtures.product_relations_2);
+        await this.runner.test('should load all records with relations', async () => {
+            let results = await this.categoriesRepo.loadAllWithRelations(['related_products']);
+            assert.ok(results);
+            assert.strictEqual(results.length, 2);
+            for(let category of results){
+                assert.ok(category.related_products);
+                assert.ok(Array.isArray(category.related_products));
+            }
+        });
+        await this.runner.test('should respect limit with relations', async () => {
+            this.categoriesRepo.limit = 1;
+            let results = await this.categoriesRepo.loadAllWithRelations(['related_products']);
+            assert.strictEqual(results.length, 1);
+            assert.ok(results[0].related_products);
+        });
+        await this.runner.test('should respect sortBy with relations', async () => {
+            this.categoriesRepo.sortBy = 'name';
+            this.categoriesRepo.sortDirection = 'DESC';
+            let results = await this.categoriesRepo.loadAllWithRelations(['related_products']);
+            assert.ok(results.length > 0);
+            assert.ok(results[0].related_products);
+        });
+    }
+
+    async testLoadByWithRelations()
+    {
+        this.runner.group('loadByWithRelations');
+        await TestHelpers.cleanDatabase(this.dataServer);
+        await this.categoriesRepo.create(CategoriesFixtures.category_relations_1);
+        await this.productsRepo.create(ProductsFixtures.product_relations_1);
+        await this.runner.test('should load records by field with relations', async () => {
+            let results = await this.categoriesRepo.loadByWithRelations('slug', 'relations-test-1', ['related_products']);
+            assert.ok(results);
+            assert.ok(results.length > 0);
+            let category = results[0];
+            assert.strictEqual(category.slug, 'relations-test-1');
+            assert.ok(category.related_products);
+            assert.ok(Array.isArray(category.related_products));
+        });
+        await this.runner.test('should return empty array when no match with relations', async () => {
+            let results = await this.categoriesRepo.loadByWithRelations('slug', 'nonexistent', ['related_products']);
+            assert.ok(results);
+            assert.strictEqual(results.length, 0);
+        });
+    }
+
+    async testLoadByIdWithRelations()
+    {
+        this.runner.group('loadByIdWithRelations');
+        await TestHelpers.cleanDatabase(this.dataServer);
+        await this.categoriesRepo.create(CategoriesFixtures.category_relations_1);
+        await this.categoriesRepo.create(CategoriesFixtures.category_relations_2);
+        await this.productsRepo.create(ProductsFixtures.product_relations_1);
+        await this.productsRepo.create(ProductsFixtures.product_relations_2);
+        await this.runner.test('should load single record by ID with relations', async () => {
+            let result = await this.categoriesRepo.loadByIdWithRelations(1600, ['related_products']);
+            assert.ok(result);
+            assert.strictEqual(result.id, 1600);
+            assert.ok(result.related_products);
+            assert.ok(Array.isArray(result.related_products));
+            assert.strictEqual(result.related_products.length, 1);
+        });
+        await this.runner.test('should return null when ID not found with relations', async () => {
+            let result = await this.categoriesRepo.loadByIdWithRelations(99999, ['related_products']);
+            assert.ok(!result);
+        });
+    }
+
+    async testLoadOneWithRelations()
+    {
+        this.runner.group('loadOneWithRelations');
+        await TestHelpers.cleanDatabase(this.dataServer);
+        await this.categoriesRepo.create(CategoriesFixtures.category_relations_1);
+        await this.categoriesRepo.create(CategoriesFixtures.category_relations_2);
+        await this.productsRepo.create(ProductsFixtures.product_relations_1);
+        await this.runner.test('should load one record with relations', async () => {
+            let result = await this.categoriesRepo.loadOneWithRelations({is_active: 1}, ['related_products']);
+            assert.ok(result);
+            assert.strictEqual(result.is_active, 1);
+            assert.ok(result.related_products);
+            assert.ok(Array.isArray(result.related_products));
+        });
+        await this.runner.test('should return null when no match with relations', async () => {
+            let result = await this.categoriesRepo.loadOneWithRelations({slug: 'nonexistent'}, ['related_products']);
+            assert.ok(!result);
+        });
+    }
+
+    async testLoadOneByWithRelations()
+    {
+        this.runner.group('loadOneByWithRelations');
+        await TestHelpers.cleanDatabase(this.dataServer);
+        await this.categoriesRepo.create(CategoriesFixtures.category_relations_1);
+        await this.productsRepo.create(ProductsFixtures.product_relations_1);
+        await this.runner.test('should load one record by field with relations', async () => {
+            let result = await this.categoriesRepo.loadOneByWithRelations('slug', 'relations-test-1', ['related_products']);
+            assert.ok(result);
+            assert.strictEqual(result.slug, 'relations-test-1');
+            assert.ok(result.related_products);
+            assert.ok(Array.isArray(result.related_products));
+        });
+        await this.runner.test('should return null when no match by field with relations', async () => {
+            let result = await this.categoriesRepo.loadOneByWithRelations('slug', 'nonexistent', ['related_products']);
+            assert.ok(!result);
+        });
+    }
+
+    async testCountWithRelations()
+    {
+        this.runner.group('countWithRelations');
+        await TestHelpers.cleanDatabase(this.dataServer);
+        await this.categoriesRepo.create(CategoriesFixtures.category_relations_1);
+        await this.categoriesRepo.create(CategoriesFixtures.category_relations_2);
+        await this.categoriesRepo.create(CategoriesFixtures.category_filters_3);
+        await this.productsRepo.create(ProductsFixtures.product_relations_1);
+        await this.runner.test('should count records with relation filter', async () => {
+            let count = await this.categoriesRepo.countWithRelations({is_active: 1}, ['related_products']);
+            assert.strictEqual(count, 2);
+        });
+        await this.runner.test('should count all records with relations', async () => {
+            let count = await this.categoriesRepo.countWithRelations({}, ['related_products']);
+            assert.strictEqual(count, 3);
+        });
+    }
+
+    async testCreateWithRelations()
+    {
+        this.runner.group('createWithRelations');
+        await TestHelpers.cleanDatabase(this.dataServer);
+        await this.runner.test('should create record with nested relations', async () => {
+            let categoryWithProducts = {
+                ...CategoriesFixtures.category_relations_1,
+                related_products: [ProductsFixtures.product_relations_1]
+            };
+            let created = await this.categoriesRepo.createWithRelations(categoryWithProducts, ['related_products']);
+            assert.ok(created);
+            assert.strictEqual(created.id, 1600);
+            let loaded = await this.categoriesRepo.loadByIdWithRelations(1600, ['related_products']);
+            assert.ok(loaded);
+            assert.ok(loaded.related_products);
+            assert.ok(loaded.related_products.length > 0);
+        });
+        await TestHelpers.cleanDatabase(this.dataServer);
+        await this.runner.test('should create record without relations when not provided', async () => {
+            let created = await this.categoriesRepo.createWithRelations(CategoriesFixtures.category_relations_1, ['related_products']);
+            assert.ok(created);
+            assert.strictEqual(created.id, 1600);
+        });
+    }
+
+    async testNestedRelations()
+    {
+        this.runner.group('Nested Relations');
+        await TestHelpers.cleanDatabase(this.dataServer);
+        await this.categoriesRepo.create(CategoriesFixtures.category_relations_1);
+        await this.productsRepo.create(ProductsFixtures.product_relations_1);
+        await this.reviewsRepo.create(ReviewsFixtures.review_relations_1);
+        await this.runner.test('should load nested relations (category > products > reviews)', async () => {
+            let results = await this.categoriesRepo.loadWithRelations(
+                {id: 1600},
+                ['related_products.related_reviews']
+            );
+            assert.ok(results);
+            assert.ok(results.length > 0);
+            let category = results[0];
+            assert.ok(category.related_products);
+            assert.ok(category.related_products.length > 0);
+            let product = category.related_products[0];
+            assert.ok(product.related_reviews);
+        });
+    }
+
+    async testRelationStringParsing()
+    {
+        this.runner.group('Relation String Parsing');
+        await TestHelpers.cleanDatabase(this.dataServer);
+        await this.categoriesRepo.create(CategoriesFixtures.category_relations_1);
+        await this.productsRepo.create(ProductsFixtures.product_relations_1);
+        await this.runner.test('should parse comma-separated relations string', async () => {
+            let results = await this.productsRepo.loadWithRelations(
+                {id: 2600},
+                'related_categories,related_reviews'
+            );
+            assert.ok(results);
+            assert.ok(results.length > 0);
+        });
+        await this.runner.test('should handle single relation as string', async () => {
+            let results = await this.productsRepo.loadWithRelations(
+                {id: 2600},
+                'related_categories'
+            );
+            assert.ok(results);
+            assert.ok(results.length > 0);
+            assert.ok(results[0].related_categories);
         });
     }
 

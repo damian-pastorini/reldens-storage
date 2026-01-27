@@ -1,39 +1,42 @@
 /**
  *
  * Reldens - Test Reviews Fixtures
+ * Universal fixtures for all drivers (no driver-specific nesting)
  *
  */
 
-const baseReviews = {
-    review1: {
+module.exports.ReviewsFixtures = {
+    review_crud_1: {
+        id: 3400,
+        product_id: 2400,
         reviewer_name: 'John Doe',
+        reviewer_email: 'john@example.com',
         rating: 5,
         title: 'Excellent product!',
         comment: 'Very satisfied with this purchase',
         is_verified: 1,
         helpful_count: 10
     },
-    review2: {
+    review_relations_1: {
+        id: 3600,
+        product_id: 2600,
         reviewer_name: 'Jane Smith',
+        reviewer_email: 'jane@example.com',
         rating: 4,
         title: 'Good value',
         comment: 'Works as expected',
         is_verified: 1,
         helpful_count: 5
-    }
-};
-
-module.exports.ReviewsFixtures = {
-    'objection-js': {
-        review1: {...baseReviews.review1, id: 1001, product_id: 1001, reviewer_email: 'john@example.com'},
-        review2: {...baseReviews.review2, id: 1002, product_id: 1001, reviewer_email: 'jane@example.com'}
     },
-    'mikro-orm': {
-        review1: {...baseReviews.review1, id: 2001, product_id: 2001, reviewer_email: 'john-mikro@example.com'},
-        review2: {...baseReviews.review2, id: 2002, product_id: 2001, reviewer_email: 'jane-mikro@example.com'}
-    },
-    prisma: {
-        review1: {...baseReviews.review1, id: 3001, product_id: 3001, reviewer_email: 'john-prisma@example.com'},
-        review2: {...baseReviews.review2, id: 3002, product_id: 3001, reviewer_email: 'jane-prisma@example.com'}
+    review_relations_2: {
+        id: 3601,
+        product_id: 2601,
+        reviewer_name: 'Bob Johnson',
+        reviewer_email: 'bob@example.com',
+        rating: 5,
+        title: 'Great quality',
+        comment: 'Highly recommended',
+        is_verified: 1,
+        helpful_count: 8
     }
 };

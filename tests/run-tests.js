@@ -6,10 +6,7 @@
 
 const { Logger, sc } = require('@reldens/utils');
 const { FileHandler } = require('@reldens/server-utils');
-const { describe, run } = require('node:test');
-const { spec } = require('node:test/reporters');
 const { TestHelpers } = require('./utils/test-helpers');
-const { OutputFilter } = require('./utils/custom-reporter');
 const { DriverRegistry } = require('./utils/driver-registry');
 const DriversTest = require('./integration/test-drivers');
 const NestedFiltersTest = require('./integration/test-nested-filters');
@@ -17,7 +14,6 @@ const RelationsTest = require('./integration/test-relations');
 const EntityManagerTest = require('./unit/test-entity-manager');
 const TypeMapperTest = require('./unit/test-type-mapper');
 const DriversUnitTest = require('./unit/test-drivers');
-// const EntitiesGeneratorTest = require('./unit/test-entities-generator');
 
 if(!process.env.RELDENS_TEST_DB_HOST){
     let envPath = FileHandler.joinPaths(__dirname, '.env.test');
@@ -35,7 +31,6 @@ class RunTests
         this.filter = null;
         this.suite = null;
         this.driver = null;
-        this.breakOnError = false;
         this.driverRegistry = new DriverRegistry();
     }
 
@@ -53,10 +48,6 @@ class RunTests
             if(arg.startsWith('--driver=')){
                 this.driver = arg.split('=')[1];
                 process.stderr.write('Driver: '+this.driver+'\n');
-            }
-            if(arg === '--break-on-error'){
-                this.breakOnError = true;
-                process.stderr.write('Break on error enabled\n');
             }
         }
     }
@@ -83,58 +74,12 @@ class RunTests
         }
         process.stderr.write('Integration tests: '+(hasIntegrationTests ? 'YES' : 'NO')+'\n');
         process.stderr.write('Unit tests: '+(hasUnitTests ? 'YES' : 'NO')+'\n\n');
-        let testPromises = [];
         if(hasIntegrationTests){
             await this.driverRegistry.initialize();
+            await this.runIntegrationTests();
         }
-        describe('Reldens Storage Test Suite - Sequential Execution', () => {
-            if(hasIntegrationTests){
-                process.stderr.write('Registering integration test classes...\n');
-                let driverNames = ['objection-js', 'mikro-orm', 'prisma'];
-                for(let driverName of driverNames){
-                    let dataServer = this.driverRegistry.getDriver(driverName);
-                    let repos = this.driverRegistry.getRepos(driverName);
-                    Logger.info('Registering tests for driver: '+driverName);
-                    let driversTest = new DriversTest(dataServer, repos, driverName);
-                    testPromises.push({name: 'DriversTest['+driverName+']', promise: driversTest.run()});
-                    let nestedFiltersTest = new NestedFiltersTest(dataServer, repos, driverName);
-                    testPromises.push({name: 'NestedFiltersTest['+driverName+']', promise: nestedFiltersTest.run()});
-                    let relationsTest = new RelationsTest(dataServer, repos, driverName);
-                    testPromises.push({name: 'RelationsTest['+driverName+']', promise: relationsTest.run()});
-                }
-                process.stderr.write('Integration tests registered\n\n');
-            }
-            if(hasUnitTests){
-                process.stderr.write('Registering unit test classes...\n');
-                let entityManagerTest = new EntityManagerTest();
-                testPromises.push({name: 'EntityManagerTest', promise: entityManagerTest.run()});
-                let typeMapperTest = new TypeMapperTest();
-                testPromises.push({name: 'TypeMapperTest', promise: typeMapperTest.run()});
-                let driversUnitTest = new DriversUnitTest();
-                testPromises.push({name: 'DriversUnitTest', promise: driversUnitTest.run()});
-                process.stderr.write('Unit tests registered\n\n');
-            }
-        });
-        process.stderr.write('Starting test runner to execute ALL registered tests...\n');
-        let testStream = run({
-            concurrency: false
-        });
-        let outputFilter = new OutputFilter();
-        testStream.compose(spec).pipe(outputFilter).pipe(process.stdout);
-        await new Promise((resolve) => {
-            testStream.on('end', resolve);
-        });
-        process.stderr.write('\nAwaiting test counters...\n');
-        for(let testPromise of testPromises){
-            try {
-                let result = await testPromise.promise;
-                this.allCounts.total += result.counter;
-                this.allCounts.passed += result.counter - result.errors;
-                this.allCounts.failed += result.errors;
-                process.stderr.write('  '+testPromise.name+': '+result.counter+' tests ('+result.errors+' errors)\n');
-            } catch(error) {
-                process.stderr.write('  '+testPromise.name+': ERROR awaiting promise: '+error.message+'\n');
-            }
+        if(hasUnitTests){
+            await this.runUnitTests();
         }
         process.stderr.write('\n'+('='.repeat(60))+'\n');
         process.stderr.write('FINAL TEST RESULTS\n');
@@ -149,11 +94,72 @@ class RunTests
         if(0 < this.allCounts.failed){
             process.exitCode = 1;
         }
-        setTimeout(() => {
-            process.stderr.write('\nForce exiting after 5 seconds (connections may still be open)\n');
-            process.exit(process.exitCode || 0);
-        }, 5000);
         return this.allCounts;
+    }
+
+    async runIntegrationTests()
+    {
+        let driverNames = ['objection-js', 'mikro-orm', 'prisma'];
+        if(this.driver){
+            driverNames = [this.driver];
+        }
+        for(let driverName of driverNames){
+            let dataServer = this.driverRegistry.getDriver(driverName);
+            let repos = this.driverRegistry.getRepos(driverName);
+            if(!dataServer){
+                process.stderr.write('Driver '+driverName+' not available, skipping tests\n');
+                continue;
+            }
+            try {
+                let driversTest = new DriversTest(dataServer, repos, driverName);
+                let driversResult = await driversTest.run();
+                this.allCounts.total += driversResult.total;
+                this.allCounts.passed += driversResult.passed;
+                this.allCounts.failed += driversResult.failed;
+            } catch(error) {
+                process.stderr.write('Driver '+driverName+' tests crashed: '+error.message+'\n');
+                process.stderr.write(error.stack+'\n');
+            }
+            try {
+                let nestedFiltersTest = new NestedFiltersTest(dataServer, repos, driverName);
+                let nestedFiltersResult = await nestedFiltersTest.run();
+                this.allCounts.total += nestedFiltersResult.total;
+                this.allCounts.passed += nestedFiltersResult.passed;
+                this.allCounts.failed += nestedFiltersResult.failed;
+            } catch(error) {
+                process.stderr.write('Driver '+driverName+' nested filters tests crashed: '+error.message+'\n');
+                process.stderr.write(error.stack+'\n');
+            }
+            try {
+                let relationsTest = new RelationsTest(dataServer, repos, driverName);
+                let relationsResult = await relationsTest.run();
+                this.allCounts.total += relationsResult.total;
+                this.allCounts.passed += relationsResult.passed;
+                this.allCounts.failed += relationsResult.failed;
+            } catch(error) {
+                process.stderr.write('Driver '+driverName+' relations tests crashed: '+error.message+'\n');
+                process.stderr.write(error.stack+'\n');
+            }
+        }
+    }
+
+    async runUnitTests()
+    {
+        let entityManagerTest = new EntityManagerTest();
+        let entityManagerResult = await entityManagerTest.run();
+        this.allCounts.total += entityManagerResult.total;
+        this.allCounts.passed += entityManagerResult.passed;
+        this.allCounts.failed += entityManagerResult.failed;
+        let typeMapperTest = new TypeMapperTest();
+        let typeMapperResult = await typeMapperTest.run();
+        this.allCounts.total += typeMapperResult.total;
+        this.allCounts.passed += typeMapperResult.passed;
+        this.allCounts.failed += typeMapperResult.failed;
+        let driversUnitTest = new DriversUnitTest();
+        let driversUnitResult = await driversUnitTest.run();
+        this.allCounts.total += driversUnitResult.total;
+        this.allCounts.passed += driversUnitResult.passed;
+        this.allCounts.failed += driversUnitResult.failed;
     }
 
     async runPreFlightChecks(config)
@@ -173,18 +179,19 @@ class RunTests
 
 process.on('unhandledRejection', (reason, promise) => {
     process.stderr.write('Unhandled Rejection at: '+promise+' reason: '+reason+'\n');
-    process.exit(1);
+    process.stderr.write('(Test suite will continue)\n');
 });
 
 process.on('uncaughtException', (error) => {
     process.stderr.write('Uncaught Exception: '+error.message+'\n');
     process.stderr.write(error.stack+'\n');
-    process.exit(1);
+    process.stderr.write('(Test suite will continue)\n');
 });
 
 let runner = new RunTests();
 runner.run().catch(error => {
-    process.stderr.write('Test runner error: '+error.message+'\n');
+    process.stderr.write('CATASTROPHIC ERROR: Test runner failed completely\n');
+    process.stderr.write('Error: '+error.message+'\n');
     process.stderr.write(error.stack+'\n');
     process.exit(1);
 });

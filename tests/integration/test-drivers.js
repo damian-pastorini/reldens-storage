@@ -5,8 +5,7 @@
  *
  */
 
-const { describe, it, before, beforeEach, after, afterEach } = require('node:test');
-const assert = require('node:assert');
+const { TestRunner, assert } = require('../utils/test-runner');
 const { TestHelpers } = require('../utils/test-helpers');
 const { CategoriesFixtures } = require('../fixtures/categories-fixtures');
 const { ProductsFixtures } = require('../fixtures/products-fixtures');
@@ -22,421 +21,207 @@ class DriversTest
         this.productsRepo = repos.testProducts;
         this.reviewsRepo = repos.testReviews;
         this.driverName = driverName;
+        this.runner = new TestRunner();
     }
 
-    run()
+    async run()
     {
-        let counter = 0;
-        let errors = 0;
-        return new Promise((resolve) => {
-            describe('Driver: '+this.driverName, () => {
-                describe('CREATE Operations', () => {
-                    before(async () => {
-                        await TestHelpers.cleanDatabase(this.dataServer);
-                    });
-                it('should create single record', async () => {
-                    try {
-                        let categoryData = CategoriesFixtures[this.driverName].category1;
-                        let created = await this.categoriesRepo.create(categoryData);
-                        assert.ok(created);
-                        assert.strictEqual(created.id, categoryData.id);
-                        assert.strictEqual(created.name, categoryData.name);
-                        counter++;
-                    } catch(error) {
-                        process.stderr.write('CREATE single record failed for '+this.driverName+': '+error.message+'\n');
-                        process.stderr.write(error.stack+'\n');
-                        errors++;
-                        throw error;
-                    }
-                });
-                it('should create record with JSON field', async () => {
-                    try {
-                        let categoryData = CategoriesFixtures[this.driverName].category1;
-                        await this.categoriesRepo.create(categoryData);
-                        let productData = ProductsFixtures[this.driverName].product1;
-                        let created = await this.productsRepo.create(productData);
-                        assert.ok(created);
-                        assert.ok(created.metadata);
-                        counter++;
-                    } catch(error) {
-                        errors++;
-                        throw error;
-                    }
-                });
-                it('should create record with ENUM field', async () => {
-                    try {
-                        let categoryData = CategoriesFixtures[this.driverName].category1;
-                        await this.categoriesRepo.create(categoryData);
-                        let productData = ProductsFixtures[this.driverName].product1;
-                        let created = await this.productsRepo.create(productData);
-                        assert.ok(created);
-                        assert.strictEqual(created.status, 'published');
-                        counter++;
-                    } catch(error) {
-                        errors++;
-                        throw error;
-                    }
-                });
-                it('should enforce UNIQUE constraints', async () => {
-                    try {
-                        let categoryData = CategoriesFixtures[this.driverName].category1;
-                        await this.categoriesRepo.create(categoryData);
-                        await assert.rejects(async () => {
-                            await this.categoriesRepo.create(categoryData);
-                        });
-                        counter++;
-                    } catch(error) {
-                        errors++;
-                        throw error;
-                    }
-                });
-                it('should enforce FOREIGN KEY constraints', async () => {
-                    try {
-                        let productData = ProductsFixtures[this.driverName].product1;
-                        await assert.rejects(async () => {
-                            await this.productsRepo.create(productData);
-                        });
-                        counter++;
-                    } catch(error) {
-                        errors++;
-                        throw error;
-                    }
-                });
-            });
-            describe('UPDATE Operations', () => {
-                beforeEach(async () => {
-                    await TestHelpers.cleanDatabase(this.dataServer);
-                });
-                it('should update record by ID', async () => {
-                    try {
-                        let categoryData = CategoriesFixtures[this.driverName].category1;
-                        await this.categoriesRepo.create(categoryData);
-                        let updated = await this.categoriesRepo.updateById(categoryData.id, {name: 'Updated Name'});
-                        assert.ok(updated);
-                        let loaded = await this.categoriesRepo.loadById(categoryData.id);
-                        assert.strictEqual(loaded.name, 'Updated Name');
-                        counter++;
-                    } catch(error) {
-                        errors++;
-                        throw error;
-                    }
-                });
-                it('should update record by filters', async () => {
-                    try {
-                        let categoryData = CategoriesFixtures[this.driverName].category1;
-                        await this.categoriesRepo.create(categoryData);
-                        let updated = await this.categoriesRepo.update({slug: categoryData.slug}, {display_order: 10});
-                        assert.ok(updated);
-                        let loaded = await this.categoriesRepo.loadById(categoryData.id);
-                        assert.strictEqual(loaded.display_order, 10);
-                        counter++;
-                    } catch(error) {
-                        errors++;
-                        throw error;
-                    }
-                });
-                it('should update record by single field', async () => {
-                    try {
-                        let categoryData = CategoriesFixtures[this.driverName].category1;
-                        await this.categoriesRepo.create(categoryData);
-                        let updated = await this.categoriesRepo.updateBy('slug', categoryData.slug, {is_active: 0});
-                        assert.ok(updated);
-                        let loaded = await this.categoriesRepo.loadById(categoryData.id);
-                        assert.strictEqual(loaded.is_active, 0);
-                        counter++;
-                    } catch(error) {
-                        errors++;
-                        throw error;
-                    }
-                });
-                it('should upsert when record does not exist', async () => {
-                    try {
-                        let categoryData = CategoriesFixtures[this.driverName].category1;
-                        await this.categoriesRepo.upsert(categoryData, {id: categoryData.id});
-                        let loaded = await this.categoriesRepo.loadById(categoryData.id);
-                        assert.ok(loaded);
-                        assert.strictEqual(loaded.id, categoryData.id);
-                        assert.strictEqual(loaded.name, categoryData.name);
-                        counter++;
-                    } catch(error) {
-                        errors++;
-                        throw error;
-                    }
-                });
-                it('should upsert when record exists', async () => {
-                    try {
-                        let categoryData = CategoriesFixtures[this.driverName].category1;
-                        await this.categoriesRepo.create(categoryData);
-                        categoryData.name = 'Upserted Name';
-                        await this.categoriesRepo.upsert(categoryData, {id: categoryData.id});
-                        let loaded = await this.categoriesRepo.loadById(categoryData.id);
-                        assert.ok(loaded);
-                        assert.strictEqual(loaded.name, 'Upserted Name');
-                        counter++;
-                    } catch(error) {
-                        errors++;
-                        throw error;
-                    }
-                });
-            });
-            describe('QUERY Operations', () => {
-                beforeEach(async () => {
-                    await TestHelpers.cleanDatabase(this.dataServer);
-                    let cat1 = CategoriesFixtures[this.driverName].category1;
-                    let cat2 = CategoriesFixtures[this.driverName].category2;
-                    let cat3 = CategoriesFixtures[this.driverName].category3;
-                    await this.categoriesRepo.create(cat1);
-                    await this.categoriesRepo.create(cat2);
-                    await this.categoriesRepo.create(cat3);
-                });
-                afterEach(() => {
-                    this.categoriesRepo.limit = 0;
-                    this.categoriesRepo.offset = 0;
-                    this.categoriesRepo.sortBy = null;
-                    this.categoriesRepo.sortDirection = 'ASC';
-                });
-                it('should load all records', async () => {
-                    try {
-                        let all = await this.categoriesRepo.loadAll();
-                        assert.strictEqual(all.length, 3);
-                        counter++;
-                    } catch(error) {
-                        errors++;
-                        throw error;
-                    }
-                });
-                it('should load records by filters', async () => {
-                    try {
-                        let active = await this.categoriesRepo.load({is_active: 1});
-                        assert.strictEqual(active.length, 2);
-                        counter++;
-                    } catch(error) {
-                        errors++;
-                        throw error;
-                    }
-                });
-                it('should load records by single field', async () => {
-                    try {
-                        let cat1 = CategoriesFixtures[this.driverName].category1;
-                        let result = await this.categoriesRepo.loadBy('slug', cat1.slug);
-                        assert.ok(result.length > 0);
-                        assert.strictEqual(result[0].slug, cat1.slug);
-                        counter++;
-                    } catch(error) {
-                        errors++;
-                        throw error;
-                    }
-                });
-                it('should load record by ID', async () => {
-                    try {
-                        let cat1 = CategoriesFixtures[this.driverName].category1;
-                        let loaded = await this.categoriesRepo.loadById(cat1.id);
-                        assert.ok(loaded);
-                        assert.strictEqual(loaded.id, cat1.id);
-                        counter++;
-                    } catch(error) {
-                        errors++;
-                        throw error;
-                    }
-                });
-                it('should load records by multiple IDs', async () => {
-                    try {
-                        let cat1 = CategoriesFixtures[this.driverName].category1;
-                        let cat2 = CategoriesFixtures[this.driverName].category2;
-                        let results = await this.categoriesRepo.loadByIds([cat1.id, cat2.id]);
-                        assert.strictEqual(results.length, 2);
-                        counter++;
-                    } catch(error) {
-                        errors++;
-                        throw error;
-                    }
-                });
-                it('should load one record', async () => {
-                    try {
-                        let one = await this.categoriesRepo.loadOne({is_active: 1});
-                        assert.ok(one);
-                        assert.strictEqual(one.is_active, 1);
-                        counter++;
-                    } catch(error) {
-                        errors++;
-                        throw error;
-                    }
-                });
-                it('should load one record by field', async () => {
-                    try {
-                        let cat1 = CategoriesFixtures[this.driverName].category1;
-                        let result = await this.categoriesRepo.loadOneBy('slug', cat1.slug);
-                        assert.ok(result);
-                        assert.strictEqual(result.slug, cat1.slug);
-                        counter++;
-                    } catch(error) {
-                        errors++;
-                        throw error;
-                    }
-                });
-                it('should count records with filters', async () => {
-                    try {
-                        let count = await this.categoriesRepo.count({is_active: 1});
-                        assert.strictEqual(count, 2);
-                        counter++;
-                    } catch(error) {
-                        errors++;
-                        throw error;
-                    }
-                });
-                it('should apply limit', async () => {
-                    try {
-                        this.categoriesRepo.limit = 2;
-                        let results = await this.categoriesRepo.load({});
-                        assert.strictEqual(results.length, 2);
-                        counter++;
-                    } catch(error) {
-                        errors++;
-                        throw error;
-                    }
-                });
-                it('should apply offset', async () => {
-                    try {
-                        this.categoriesRepo.limit = 2;
-                        this.categoriesRepo.offset = 1;
-                        let results = await this.categoriesRepo.load({});
-                        assert.strictEqual(results.length, 2);
-                        counter++;
-                    } catch(error) {
-                        errors++;
-                        throw error;
-                    }
-                });
-                it('should apply sortBy and sortDirection', async () => {
-                    try {
-                        this.categoriesRepo.sortBy = 'display_order';
-                        this.categoriesRepo.sortDirection = 'ASC';
-                        let results = await this.categoriesRepo.loadAll();
-                        assert.strictEqual(results[0].display_order, 1);
-                        counter++;
-                    } catch(error) {
-                        errors++;
-                        throw error;
-                    }
-                });
-            });
-            describe('DELETE Operations', () => {
-                beforeEach(async () => {
-                    await TestHelpers.cleanDatabase(this.dataServer);
-                    let cat1 = CategoriesFixtures[this.driverName].category1;
-                    let cat2 = CategoriesFixtures[this.driverName].category2;
-                    await this.categoriesRepo.create(cat1);
-                    await this.categoriesRepo.create(cat2);
-                });
-                it('should delete record by ID', async () => {
-                    try {
-                        let cat1 = CategoriesFixtures[this.driverName].category1;
-                        let deleted = await this.categoriesRepo.deleteById(cat1.id);
-                        assert.ok(deleted);
-                        let loaded = await this.categoriesRepo.loadById(cat1.id);
-                        assert.ok(!loaded);
-                        counter++;
-                    } catch(error) {
-                        errors++;
-                        throw error;
-                    }
-                });
-                it('should delete records by filters', async () => {
-                    try {
-                        let deleted = await this.categoriesRepo.delete({is_active: 1});
-                        assert.ok(deleted);
-                        let remaining = await this.categoriesRepo.loadAll();
-                        assert.strictEqual(remaining.length, 0);
-                        counter++;
-                    } catch(error) {
-                        errors++;
-                        throw error;
-                    }
-                });
-            });
+        this.runner.suite('Driver: '+this.driverName);
+        await this.testCreateOperations();
+        await this.testUpdateOperations();
+        await this.testQueryOperations();
+        await this.testDeleteOperations();
+        await this.testReviewsCrud();
+        return this.runner.getResults();
+    }
+
+    async testCreateOperations()
+    {
+        this.runner.group('CREATE Operations');
+        await TestHelpers.cleanDatabase(this.dataServer);
+        await this.categoriesRepo.create(CategoriesFixtures.category_create_single);
+        await this.categoriesRepo.create(CategoriesFixtures.category_create_json);
+        await this.productsRepo.create(ProductsFixtures.product_create_json);
+        await this.categoriesRepo.create(CategoriesFixtures.category_create_enum);
+        await this.productsRepo.create(ProductsFixtures.product_create_enum);
+        await this.categoriesRepo.create(CategoriesFixtures.category_unique_test);
+        await this.runner.test('should create single record', async () => {
+            let created = await this.categoriesRepo.loadById(1001);
+            assert.ok(created);
+            assert.strictEqual(created.id, 1001);
+            assert.strictEqual(created.name, 'Electronics');
         });
-        describe('REVIEWS CRUD Operations', () => {
-            beforeEach(async () => {
-                let cat1 = CategoriesFixtures[this.driverName].category1;
-                await this.categoriesRepo.create(cat1);
-                let prod1 = ProductsFixtures[this.driverName].product1;
-                await this.productsRepo.create(prod1);
-            });
-            it('should create review record', async () => {
-                try {
-                    let reviewData = ReviewsFixtures[this.driverName].review1;
-                    let created = await this.reviewsRepo.create(reviewData);
-                    assert.ok(created);
-                    assert.strictEqual(created.id, reviewData.id);
-                    assert.strictEqual(created.reviewer_name, reviewData.reviewer_name);
-                    assert.strictEqual(created.rating, reviewData.rating);
-                    counter++;
-                } catch(error) {
-                    errors++;
-                    throw error;
-                }
-            });
-            it('should load review by ID', async () => {
-                try {
-                    let reviewData = ReviewsFixtures[this.driverName].review1;
-                    await this.reviewsRepo.create(reviewData);
-                    let loaded = await this.reviewsRepo.loadById(reviewData.id);
-                    assert.ok(loaded);
-                    assert.strictEqual(loaded.id, reviewData.id);
-                    assert.strictEqual(loaded.reviewer_name, reviewData.reviewer_name);
-                    counter++;
-                } catch(error) {
-                    errors++;
-                    throw error;
-                }
-            });
-            it('should update review by ID', async () => {
-                try {
-                    let reviewData = ReviewsFixtures[this.driverName].review1;
-                    await this.reviewsRepo.create(reviewData);
-                    let updated = await this.reviewsRepo.updateById(reviewData.id, {rating: 3});
-                    assert.ok(updated);
-                    let loaded = await this.reviewsRepo.loadById(reviewData.id);
-                    assert.strictEqual(loaded.rating, 3);
-                    counter++;
-                } catch(error) {
-                    errors++;
-                    throw error;
-                }
-            });
-            it('should delete review by ID', async () => {
-                try {
-                    let reviewData = ReviewsFixtures[this.driverName].review1;
-                    await this.reviewsRepo.create(reviewData);
-                    let deleted = await this.reviewsRepo.deleteById(reviewData.id);
-                    assert.ok(deleted);
-                    let loaded = await this.reviewsRepo.loadById(reviewData.id);
-                    assert.ok(!loaded);
-                    counter++;
-                } catch(error) {
-                    errors++;
-                    throw error;
-                }
-            });
-            it('should load reviews by product_id', async () => {
-                try {
-                    let rev1 = ReviewsFixtures[this.driverName].review1;
-                    let rev2 = ReviewsFixtures[this.driverName].review2;
-                    await this.reviewsRepo.create(rev1);
-                    await this.reviewsRepo.create(rev2);
-                    let results = await this.reviewsRepo.load({product_id: rev1.product_id});
-                    assert.ok(results);
-                    assert.strictEqual(results.length, 2);
-                    counter++;
-                } catch(error) {
-                    errors++;
-                    throw error;
-                }
-            });
-            after(() => {
-                resolve({counter, errors});
-            });
+        await this.runner.test('should create record with JSON field', async () => {
+            let category = await this.categoriesRepo.loadById(1002);
+            let product = await this.productsRepo.loadById(2001);
+            assert.ok(category);
+            assert.ok(product);
+            assert.ok(product.metadata);
         });
+        await this.runner.test('should create record with ENUM field', async () => {
+            let category = await this.categoriesRepo.loadById(1003);
+            let product = await this.productsRepo.loadById(2002);
+            assert.ok(category);
+            assert.ok(product);
+            assert.strictEqual(product.status, 'published');
+        });
+        await this.runner.test('should enforce UNIQUE constraints', async () => {
+            let categoryData = CategoriesFixtures.category_unique_test;
+            try {
+                await this.categoriesRepo.create(categoryData);
+                assert.fail('Should have thrown duplicate key error');
+            } catch(error){
+                assert.ok(error);
+            }
+        });
+        await this.runner.test('should enforce FOREIGN KEY constraints', async () => {
+            let productData = ProductsFixtures.product_fk_test;
+            try {
+                await this.productsRepo.create(productData);
+                assert.fail('Should have thrown foreign key error');
+            } catch(error){
+                assert.ok(error);
+            }
+        });
+    }
+
+    async testUpdateOperations()
+    {
+        this.runner.group('UPDATE Operations');
+        await TestHelpers.cleanDatabase(this.dataServer);
+        await this.categoriesRepo.create(CategoriesFixtures.category_update_by_id);
+        await this.runner.test('should update record by ID', async () => {
+            let updated = await this.categoriesRepo.updateById(1100, {name: 'Updated Name'});
+            assert.ok(updated);
+            assert.strictEqual(updated.name, 'Updated Name');
+        });
+        await this.runner.test('should update record by filters', async () => {
+            let updated = await this.categoriesRepo.updateBy('id', 1100, {name: 'Updated via filters'});
+            assert.ok(updated);
+        });
+        await this.runner.test('should update record by single field', async () => {
+            let updated = await this.categoriesRepo.updateBy('id', 1100, {name: 'Updated via field'});
+            assert.ok(updated);
+        });
+        await this.runner.test('should upsert when record does not exist', async () => {
+            let newData = CategoriesFixtures.category_upsert_new;
+            let result = await this.categoriesRepo.upsert({id: newData.id}, newData);
+            assert.ok(result);
+        });
+        await this.runner.test('should upsert when record exists', async () => {
+            let result = await this.categoriesRepo.upsert({id: 1100}, {name: 'Upserted Name'});
+            assert.ok(result);
+        });
+    }
+
+    async testQueryOperations()
+    {
+        this.runner.group('QUERY Operations');
+        await TestHelpers.cleanDatabase(this.dataServer);
+        await this.categoriesRepo.create(CategoriesFixtures.category_query_1);
+        await this.categoriesRepo.create(CategoriesFixtures.category_query_2);
+        await this.categoriesRepo.create(CategoriesFixtures.category_query_3);
+        await this.runner.test('should load all records', async () => {
+            let all = await this.categoriesRepo.loadAll();
+            assert.strictEqual(all.length, 3);
+        });
+        await this.runner.test('should load records by filters', async () => {
+            let filtered = await this.categoriesRepo.load({name: 'Query Test 1'});
+            assert.strictEqual(filtered.length, 1);
+            assert.strictEqual(filtered[0].id, 1300);
+        });
+        await this.runner.test('should load records by single field', async () => {
+            let result = await this.categoriesRepo.loadBy('name', 'Query Test 2');
+            assert.strictEqual(result.length, 1);
+            assert.strictEqual(result[0].id, 1301);
+        });
+        await this.runner.test('should load record by ID', async () => {
+            let record = await this.categoriesRepo.loadById(1300);
+            assert.ok(record);
+            assert.strictEqual(record.id, 1300);
+        });
+        await this.runner.test('should load records by multiple IDs', async () => {
+            let records = await this.categoriesRepo.loadByIds([1300, 1301]);
+            assert.strictEqual(records.length, 2);
+        });
+        await this.runner.test('should load one record', async () => {
+            let record = await this.categoriesRepo.loadOne({name: 'Query Test 1'});
+            assert.ok(record);
+            assert.strictEqual(record.id, 1300);
+        });
+        await this.runner.test('should load one record by field', async () => {
+            let record = await this.categoriesRepo.loadOneBy('name', 'Query Test 3');
+            assert.ok(record);
+            assert.strictEqual(record.id, 1302);
+        });
+        await this.runner.test('should count records with filters', async () => {
+            let count = await this.categoriesRepo.count({name: 'Query Test 1'});
+            assert.strictEqual(count, 1);
+        });
+        await this.runner.test('should apply limit', async () => {
+            let records = await this.categoriesRepo.loadAll({}, {limit: 2});
+            assert.strictEqual(records.length, 2);
+        });
+        await this.runner.test('should apply offset', async () => {
+            let records = await this.categoriesRepo.loadAll({}, {offset: 1, limit: 2});
+            assert.strictEqual(records.length, 2);
+        });
+        await this.runner.test('should apply sortBy and sortDirection', async () => {
+            let records = await this.categoriesRepo.loadAll({}, {sortBy: 'name', sortDirection: 'DESC'});
+            assert.strictEqual(records[0].name, 'Query Test 3');
+        });
+    }
+
+    async testDeleteOperations()
+    {
+        this.runner.group('DELETE Operations');
+        await TestHelpers.cleanDatabase(this.dataServer);
+        await this.categoriesRepo.create(CategoriesFixtures.category_delete_by_id);
+        await this.categoriesRepo.create(CategoriesFixtures.category_delete_by_filters);
+        await this.runner.test('should delete record by ID', async () => {
+            let result = await this.categoriesRepo.deleteById(1200);
+            assert.ok(result);
+            let remaining = await this.categoriesRepo.loadAll();
+            assert.strictEqual(remaining.length, 1);
+        });
+        await this.runner.test('should delete records by filters', async () => {
+            let result = await this.categoriesRepo.delete({name: 'Art'});
+            assert.ok(result);
+            let remaining = await this.categoriesRepo.loadAll();
+            assert.strictEqual(remaining.length, 0);
+        });
+    }
+
+    async testReviewsCrud()
+    {
+        this.runner.group('REVIEWS CRUD Operations');
+        await TestHelpers.cleanDatabase(this.dataServer);
+        await this.categoriesRepo.create(CategoriesFixtures.category_reviews_crud);
+        await this.productsRepo.create(ProductsFixtures.product_reviews_crud);
+        await this.reviewsRepo.create(ReviewsFixtures.review_crud_1);
+        await this.runner.test('should create review record', async () => {
+            let created = await this.reviewsRepo.loadById(3400);
+            assert.ok(created);
+            assert.strictEqual(created.product_id, 2400);
+        });
+        await this.runner.test('should load review by ID', async () => {
+            let record = await this.reviewsRepo.loadById(3400);
+            assert.ok(record);
+            assert.strictEqual(record.id, 3400);
+        });
+        await this.runner.test('should update review by ID', async () => {
+            let updated = await this.reviewsRepo.updateById(3400, {rating: 5});
+            assert.ok(updated);
+            assert.strictEqual(updated.rating, 5);
+        });
+        await this.runner.test('should delete review by ID', async () => {
+            let result = await this.reviewsRepo.deleteById(3400);
+            assert.ok(result);
+        });
+        await this.runner.test('should load reviews by product_id', async () => {
+            await this.reviewsRepo.create(ReviewsFixtures.review_crud_1);
+            let reviews = await this.reviewsRepo.loadBy('product_id', 2400);
+            assert.strictEqual(reviews.length, 1);
         });
     }
 

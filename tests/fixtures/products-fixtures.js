@@ -1,13 +1,17 @@
 /**
  *
  * Reldens - Test Products Fixtures
+ * Universal fixtures for all drivers (no driver-specific nesting)
  *
  */
 
-const baseProducts = {
-    product1: {
+module.exports.ProductsFixtures = {
+    product_create_json: {
+        id: 2001,
+        category_id: 1002,
         name: 'Laptop Pro 15',
         description: 'High-performance laptop',
+        sku: 'LAPTOP-PRO-15',
         price: 1299.99,
         stock_quantity: 50,
         is_featured: 1,
@@ -15,29 +19,95 @@ const baseProducts = {
         tags: 'electronics,computers,featured',
         status: 'published'
     },
-    product2: {
-        name: 'Wireless Mouse',
-        description: 'Ergonomic wireless mouse',
-        price: 29.99,
-        stock_quantity: 150,
+    product_create_enum: {
+        id: 2002,
+        category_id: 1003,
+        name: 'T-Shirt Classic',
+        description: 'Cotton t-shirt',
+        sku: 'TSHIRT-CLASSIC',
+        price: 24.99,
+        stock_quantity: 200,
         is_featured: 0,
-        metadata: JSON.stringify({battery: 'AA', range: '10m'}),
-        tags: 'electronics,accessories',
+        metadata: JSON.stringify({size: 'M', material: 'cotton'}),
+        tags: 'clothing,apparel',
         status: 'published'
-    }
-};
-
-module.exports.ProductsFixtures = {
-    'objection-js': {
-        product1: {...baseProducts.product1, id: 1001, category_id: 1001, sku: 'LAPTOP-PRO-15'},
-        product2: {...baseProducts.product2, id: 1002, category_id: 1001, sku: 'MOUSE-WIRELESS'}
     },
-    'mikro-orm': {
-        product1: {...baseProducts.product1, id: 2001, category_id: 2001, sku: 'LAPTOP-PRO-15-MIKRO'},
-        product2: {...baseProducts.product2, id: 2002, category_id: 2001, sku: 'MOUSE-WIRELESS-MIKRO'}
+    product_fk_test: {
+        id: 2003,
+        category_id: 9999,
+        name: 'Invalid Category Product',
+        description: 'Product with invalid category FK',
+        sku: 'INVALID-FK-TEST',
+        price: 9.99,
+        stock_quantity: 1,
+        is_featured: 0,
+        metadata: JSON.stringify({}),
+        tags: 'test',
+        status: 'draft'
     },
-    prisma: {
-        product1: {...baseProducts.product1, id: 3001, category_id: 3001, sku: 'LAPTOP-PRO-15-PRISMA'},
-        product2: {...baseProducts.product2, id: 3002, category_id: 3001, sku: 'MOUSE-WIRELESS-PRISMA'}
+    product_reviews_crud: {
+        id: 2400,
+        category_id: 1400,
+        name: 'Reviews CRUD Product',
+        description: 'Product for reviews CRUD tests',
+        sku: 'REVIEWS-CRUD-PROD',
+        price: 99.99,
+        stock_quantity: 10,
+        is_featured: 1,
+        metadata: JSON.stringify({test: 'reviews'}),
+        tags: 'test,reviews',
+        status: 'published'
+    },
+    product_filters_1: {
+        id: 2500,
+        category_id: 1500,
+        name: 'Filters Product 1',
+        description: 'First product for filter tests',
+        sku: 'FILTERS-PROD-1',
+        price: 49.99,
+        stock_quantity: 25,
+        is_featured: 1,
+        metadata: JSON.stringify({test: 'filters'}),
+        tags: 'test,filters',
+        status: 'published'
+    },
+    product_filters_2: {
+        id: 2501,
+        category_id: 1500,
+        name: 'Filters Product 2',
+        description: 'Second product for filter tests',
+        sku: 'FILTERS-PROD-2',
+        price: 79.99,
+        stock_quantity: 15,
+        is_featured: 0,
+        metadata: JSON.stringify({test: 'filters'}),
+        tags: 'test,filters',
+        status: 'draft'
+    },
+    product_relations_1: {
+        id: 2600,
+        category_id: 1600,
+        name: 'Relations Product 1',
+        description: 'First product for relations tests',
+        sku: 'RELATIONS-PROD-1',
+        price: 149.99,
+        stock_quantity: 30,
+        is_featured: 1,
+        metadata: JSON.stringify({test: 'relations'}),
+        tags: 'test,relations',
+        status: 'published'
+    },
+    product_relations_2: {
+        id: 2601,
+        category_id: 1601,
+        name: 'Relations Product 2',
+        description: 'Second product for relations tests',
+        sku: 'RELATIONS-PROD-2',
+        price: 199.99,
+        stock_quantity: 20,
+        is_featured: 1,
+        metadata: JSON.stringify({test: 'relations'}),
+        tags: 'test,relations',
+        status: 'published'
     }
 };

@@ -284,6 +284,9 @@ class TestHelpers
             await dataServer.rawQuery('DELETE FROM test_products;');
             await dataServer.rawQuery('DELETE FROM test_categories;');
             await dataServer.rawQuery('SET FOREIGN_KEY_CHECKS=1;');
+            if(dataServer.orm && dataServer.orm.em){
+                await dataServer.orm.em.clear();
+            }
             return true;
         } catch(error) {
             try {
