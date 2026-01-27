@@ -10,24 +10,25 @@ const { Logger } = require('@reldens/utils');
 const { FileHandler } = require('@reldens/server-utils');
 const { TestHelpers } = require('./test-helpers');
 
-// SINGLETON DATA - Shared across ALL requires
-const SHARED_STATE = {
-    drivers: {},
-    repos: {},
-    initialized: false,
-    instanceId: Math.random()
-};
-
 class DriverRegistry
 {
 
-    static schemaPath = FileHandler.joinPaths(__dirname, '..', 'fixtures', 'sql', 'test-schema.sql');
-    static repoNames = ['testCategories', 'testProducts', 'testReviews'];
-    static driverNames = ['objection-js', 'mikro-orm', 'prisma'];
-
-    static async initialize()
+    constructor()
     {
-        if(SHARED_STATE.initialized){
+        this.sharedState = {
+            drivers: {},
+            repos: {},
+            initialized: false,
+            instanceId: Math.random()
+        };
+        this.schemaPath = FileHandler.joinPaths(__dirname, '..', 'fixtures', 'sql', 'test-schema.sql');
+        this.repoNames = ['testCategories', 'testProducts', 'testReviews'];
+        this.driverNames = ['objection-js', 'mikro-orm', 'prisma'];
+    }
+
+    async initialize()
+    {
+        if(this.sharedState.initialized){
             return;
         }
         Logger.info('========================================');
@@ -48,50 +49,50 @@ class DriverRegistry
                     repos[entityName] = repo;
                 }
                 Logger.info('REGISTRY: About to assign driver '+driverName+' to registry');
-                SHARED_STATE.drivers[driverName] = dataServer;
-                SHARED_STATE.repos[driverName] = repos;
-                Logger.info('REGISTRY: Assigned! drivers['+driverName+'] = '+(SHARED_STATE.drivers[driverName] ? 'EXISTS' : 'NULL'));
-                Logger.info('REGISTRY: Assigned! repos['+driverName+'] = '+(SHARED_STATE.repos[driverName] ? 'EXISTS' : 'NULL'));
+                this.sharedState.drivers[driverName] = dataServer;
+                this.sharedState.repos[driverName] = repos;
+                Logger.info('REGISTRY: Assigned! drivers['+driverName+'] = '+(this.sharedState.drivers[driverName] ? 'EXISTS' : 'NULL'));
+                Logger.info('REGISTRY: Assigned! repos['+driverName+'] = '+(this.sharedState.repos[driverName] ? 'EXISTS' : 'NULL'));
                 Logger.info('REGISTRY: Driver '+driverName+' initialized successfully');
             } catch(error) {
                 Logger.critical('REGISTRY: Failed to initialize driver '+driverName);
                 Logger.critical('ERROR: '+error.message);
                 Logger.critical('STACK: '+error.stack);
-                SHARED_STATE.drivers[driverName] = null;
-                SHARED_STATE.repos[driverName] = {};
+                this.sharedState.drivers[driverName] = null;
+                this.sharedState.repos[driverName] = {};
             }
         }
-        SHARED_STATE.initialized = true;
+        this.sharedState.initialized = true;
         Logger.info('========================================');
-        Logger.info('DRIVER REGISTRY INITIALIZED - instanceId = '+SHARED_STATE.instanceId);
-        Logger.info('REGISTRY DEBUG: drivers keys = '+Object.keys(SHARED_STATE.drivers).join(', '));
-        Logger.info('REGISTRY DEBUG: repos keys = '+Object.keys(SHARED_STATE.repos).join(', '));
+        Logger.info('DRIVER REGISTRY INITIALIZED - instanceId = '+this.sharedState.instanceId);
+        Logger.info('REGISTRY DEBUG: drivers keys = '+Object.keys(this.sharedState.drivers).join(', '));
+        Logger.info('REGISTRY DEBUG: repos keys = '+Object.keys(this.sharedState.repos).join(', '));
         Logger.info('========================================');
     }
 
-    static getDriver(driverName)
+    getDriver(driverName)
     {
-        Logger.info('REGISTRY: getDriver called - instanceId = '+SHARED_STATE.instanceId);
-        let driverInstance = SHARED_STATE.drivers[driverName];
+        Logger.info('REGISTRY: getDriver called - instanceId = '+this.sharedState.instanceId);
+        let driverInstance = this.sharedState.drivers[driverName];
         Logger.info('REGISTRY: getDriver('+driverName+') typeof = '+(typeof driverInstance)+', null? '+(driverInstance === null)+', undefined? '+(driverInstance === undefined));
         return driverInstance;
     }
 
-    static getRepos(driverName)
+    getRepos(driverName)
     {
-        Logger.info('REGISTRY: getRepos called - instanceId = '+SHARED_STATE.instanceId);
-        let reposObject = SHARED_STATE.repos[driverName];
+        Logger.info('REGISTRY: getRepos called - instanceId = '+this.sharedState.instanceId);
+        let reposObject = this.sharedState.repos[driverName];
         Logger.info('REGISTRY: getRepos('+driverName+') typeof = '+(typeof reposObject)+', keys = '+(reposObject ? JSON.stringify(Object.keys(reposObject)) : 'NO VALUE'));
         return reposObject;
     }
 
-    static async cleanup()
+    async cleanup()
     {
         Logger.info('========================================');
         Logger.info('CLEANING UP DRIVER REGISTRY');
         Logger.info('========================================');
         for(let driverName of this.driverNames){
-            let dataServer = SHARED_STATE.drivers[driverName];
+            let dataServer = this.sharedState.drivers[driverName];
             if(dataServer){
                 try {
                     await TestHelpers.dropTestTables(dataServer);
@@ -102,14 +103,12 @@ class DriverRegistry
             }
         }
         TestHelpers.cleanupGeneratedFiles();
-        SHARED_STATE.drivers = {};
-        SHARED_STATE.repos = {};
-        SHARED_STATE.initialized = false;
+        this.sharedState.drivers = {};
+        this.sharedState.repos = {};
+        this.sharedState.initialized = false;
         Logger.info('Driver registry cleanup complete');
     }
 
 }
 
-// Export the CLASS itself, not an instance
-// Static properties are shared across all imports
-module.exports = { DriverRegistry };
+module.exports.DriverRegistry = DriverRegistry;
