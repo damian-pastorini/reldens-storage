@@ -162,7 +162,10 @@ class TestHelpers
             let config = this.getTestDbConfig();
             Logger.info('DB Config: '+JSON.stringify({host: config.host, port: config.port, database: config.database, user: config.user}));
             if('prisma' === driverName){
-                await this.ensurePrismaClientGenerated(config);
+                let subprocessSuccess = await this.runPrismaSubprocess(process.cwd(), config);
+                if(!subprocessSuccess){
+                    throw new Error('Prisma subprocess generation failed');
+                }
             }
             let serverConfig = {
                 client: driverName === 'objection-js' ? 'mysql2' : 'mysql',
@@ -170,9 +173,7 @@ class TestHelpers
                 rawEntities: rawEntities
             };
             if('prisma' === driverName){
-                serverConfig.projectRoot = process.cwd();
-                let { PrismaClientLoader } = require('../../lib/prisma/prisma-client-loader');
-                let prismaClient = PrismaClientLoader.load(process.cwd(), null, config);
+                let prismaClient = await this.loadPrismaClient(process.cwd());
                 if(!prismaClient){
                     throw new Error('Failed to load Prisma client');
                 }
@@ -395,6 +396,92 @@ class TestHelpers
             'client',
             'index.js'
         ));
+    }
+
+    static async runPrismaSubprocess(projectRoot, config)
+    {
+        let { fork } = require('child_process');
+        Logger.info('Forking Prisma subprocess for client generation...');
+        let workerPath = FileHandler.joinPaths(__dirname, 'prisma-subprocess-worker.js');
+        if(!FileHandler.exists(workerPath)){
+            Logger.critical('Prisma subprocess worker not found: '+workerPath);
+            return false;
+        }
+        let worker = fork(workerPath, [], {
+            cwd: projectRoot,
+            stdio: ['pipe', 'pipe', 'pipe', 'ipc'],
+            env: {...process.env}
+        });
+        let message = {
+            projectRoot: projectRoot,
+            config: config
+        };
+        worker.stdout.on('data', (data) => {
+            Logger.info('Subprocess stdout: '+data.toString().trim());
+        });
+        worker.stderr.on('data', (data) => {
+            Logger.error('Subprocess stderr: '+data.toString().trim());
+        });
+        worker.send(message);
+        let subprocessCompleted = false;
+        let subprocessSuccess = false;
+        let workerExited = false;
+        worker.on('message', (msg) => {
+            subprocessCompleted = true;
+            subprocessSuccess = sc.get(msg, 'success', false);
+            if(!subprocessSuccess){
+                Logger.error('Subprocess failed: '+sc.get(msg, 'error', 'Unknown'));
+            }
+        });
+        worker.on('error', (error) => {
+            subprocessCompleted = true;
+            subprocessSuccess = false;
+            Logger.error('Subprocess error: '+error.message);
+        });
+        worker.on('exit', (code, signal) => {
+            workerExited = true;
+            if(!subprocessCompleted){
+                subprocessCompleted = true;
+                subprocessSuccess = false;
+            }
+        });
+        let attempts = 0;
+        let maxAttempts = 1800;
+        while(!subprocessCompleted && attempts < maxAttempts){
+            attempts++;
+            await new Promise(resolve => setTimeout(resolve, 100));
+        }
+        if(!workerExited){
+            worker.kill('SIGTERM');
+            await new Promise(resolve => setTimeout(resolve, 1000));
+            if(!workerExited){
+                worker.kill('SIGKILL');
+            }
+        }
+        Logger.info('Prisma subprocess ended. Success: '+subprocessSuccess);
+        return subprocessSuccess;
+    }
+
+    static async loadPrismaClient(projectRoot)
+    {
+        try {
+            let clientPath = FileHandler.joinPaths(projectRoot, 'prisma', 'client');
+            if(!FileHandler.exists(clientPath)){
+                Logger.critical('Prisma client path does not exist: '+clientPath);
+                return false;
+            }
+            let { PrismaClient } = require(clientPath);
+            if(!PrismaClient){
+                Logger.critical('PrismaClient not found in module.');
+                return false;
+            }
+            let client = new PrismaClient();
+            await client.$connect();
+            return client;
+        } catch(error) {
+            Logger.critical('Failed to load Prisma client: '+error.message);
+            return false;
+        }
     }
 
     static cleanupGeneratedFiles()
