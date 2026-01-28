@@ -44,9 +44,15 @@ class RelationsTest
     {
         this.runner.group('loadWithRelations');
         await TestHelpers.cleanDatabase(this.dataServer);
-        await this.categoriesRepo.create(CategoriesFixtures.category_relations_1);
-        await this.productsRepo.create(ProductsFixtures.product_relations_1);
-        await this.reviewsRepo.create(ReviewsFixtures.review_relations_1);
+        await TestHelpers.insertFixturesViaRawSQL(this.dataServer, 'test_categories', [
+            CategoriesFixtures.category_relations_1
+        ]);
+        await TestHelpers.insertFixturesViaRawSQL(this.dataServer, 'test_products', [
+            ProductsFixtures.product_relations_1
+        ]);
+        await TestHelpers.insertFixturesViaRawSQL(this.dataServer, 'test_reviews', [
+            ReviewsFixtures.review_relations_1
+        ]);
         await this.runner.test('should load records with single relation', async () => {
             let results = await this.categoriesRepo.loadWithRelations({id: 1600}, ['related_products']);
             assert.ok(results);
@@ -79,10 +85,14 @@ class RelationsTest
     {
         this.runner.group('loadAllWithRelations');
         await TestHelpers.cleanDatabase(this.dataServer);
-        await this.categoriesRepo.create(CategoriesFixtures.category_relations_1);
-        await this.categoriesRepo.create(CategoriesFixtures.category_relations_2);
-        await this.productsRepo.create(ProductsFixtures.product_relations_1);
-        await this.productsRepo.create(ProductsFixtures.product_relations_2);
+        await TestHelpers.insertFixturesViaRawSQL(this.dataServer, 'test_categories', [
+            CategoriesFixtures.category_relations_1,
+            CategoriesFixtures.category_relations_2
+        ]);
+        await TestHelpers.insertFixturesViaRawSQL(this.dataServer, 'test_products', [
+            ProductsFixtures.product_relations_1,
+            ProductsFixtures.product_relations_2
+        ]);
         await this.runner.test('should load all records with relations', async () => {
             let results = await this.categoriesRepo.loadAllWithRelations(['related_products']);
             assert.ok(results);
@@ -111,8 +121,12 @@ class RelationsTest
     {
         this.runner.group('loadByWithRelations');
         await TestHelpers.cleanDatabase(this.dataServer);
-        await this.categoriesRepo.create(CategoriesFixtures.category_relations_1);
-        await this.productsRepo.create(ProductsFixtures.product_relations_1);
+        await TestHelpers.insertFixturesViaRawSQL(this.dataServer, 'test_categories', [
+            CategoriesFixtures.category_relations_1
+        ]);
+        await TestHelpers.insertFixturesViaRawSQL(this.dataServer, 'test_products', [
+            ProductsFixtures.product_relations_1
+        ]);
         await this.runner.test('should load records by field with relations', async () => {
             let results = await this.categoriesRepo.loadByWithRelations('slug', 'relations-test-1', ['related_products']);
             assert.ok(results);
@@ -133,10 +147,14 @@ class RelationsTest
     {
         this.runner.group('loadByIdWithRelations');
         await TestHelpers.cleanDatabase(this.dataServer);
-        await this.categoriesRepo.create(CategoriesFixtures.category_relations_1);
-        await this.categoriesRepo.create(CategoriesFixtures.category_relations_2);
-        await this.productsRepo.create(ProductsFixtures.product_relations_1);
-        await this.productsRepo.create(ProductsFixtures.product_relations_2);
+        await TestHelpers.insertFixturesViaRawSQL(this.dataServer, 'test_categories', [
+            CategoriesFixtures.category_relations_1,
+            CategoriesFixtures.category_relations_2
+        ]);
+        await TestHelpers.insertFixturesViaRawSQL(this.dataServer, 'test_products', [
+            ProductsFixtures.product_relations_1,
+            ProductsFixtures.product_relations_2
+        ]);
         await this.runner.test('should load single record by ID with relations', async () => {
             let result = await this.categoriesRepo.loadByIdWithRelations(1600, ['related_products']);
             assert.ok(result);
@@ -155,9 +173,13 @@ class RelationsTest
     {
         this.runner.group('loadOneWithRelations');
         await TestHelpers.cleanDatabase(this.dataServer);
-        await this.categoriesRepo.create(CategoriesFixtures.category_relations_1);
-        await this.categoriesRepo.create(CategoriesFixtures.category_relations_2);
-        await this.productsRepo.create(ProductsFixtures.product_relations_1);
+        await TestHelpers.insertFixturesViaRawSQL(this.dataServer, 'test_categories', [
+            CategoriesFixtures.category_relations_1,
+            CategoriesFixtures.category_relations_2
+        ]);
+        await TestHelpers.insertFixturesViaRawSQL(this.dataServer, 'test_products', [
+            ProductsFixtures.product_relations_1
+        ]);
         await this.runner.test('should load one record with relations', async () => {
             let result = await this.categoriesRepo.loadOneWithRelations({is_active: 1}, ['related_products']);
             assert.ok(result);
@@ -175,8 +197,12 @@ class RelationsTest
     {
         this.runner.group('loadOneByWithRelations');
         await TestHelpers.cleanDatabase(this.dataServer);
-        await this.categoriesRepo.create(CategoriesFixtures.category_relations_1);
-        await this.productsRepo.create(ProductsFixtures.product_relations_1);
+        await TestHelpers.insertFixturesViaRawSQL(this.dataServer, 'test_categories', [
+            CategoriesFixtures.category_relations_1
+        ]);
+        await TestHelpers.insertFixturesViaRawSQL(this.dataServer, 'test_products', [
+            ProductsFixtures.product_relations_1
+        ]);
         await this.runner.test('should load one record by field with relations', async () => {
             let result = await this.categoriesRepo.loadOneByWithRelations('slug', 'relations-test-1', ['related_products']);
             assert.ok(result);
@@ -194,10 +220,14 @@ class RelationsTest
     {
         this.runner.group('countWithRelations');
         await TestHelpers.cleanDatabase(this.dataServer);
-        await this.categoriesRepo.create(CategoriesFixtures.category_relations_1);
-        await this.categoriesRepo.create(CategoriesFixtures.category_relations_2);
-        await this.categoriesRepo.create(CategoriesFixtures.category_filters_3);
-        await this.productsRepo.create(ProductsFixtures.product_relations_1);
+        await TestHelpers.insertFixturesViaRawSQL(this.dataServer, 'test_categories', [
+            CategoriesFixtures.category_relations_1,
+            CategoriesFixtures.category_relations_2,
+            CategoriesFixtures.category_filters_3
+        ]);
+        await TestHelpers.insertFixturesViaRawSQL(this.dataServer, 'test_products', [
+            ProductsFixtures.product_relations_1
+        ]);
         await this.runner.test('should count records with relation filter', async () => {
             let count = await this.categoriesRepo.countWithRelations({is_active: 1}, ['related_products']);
             assert.strictEqual(count, 2);
@@ -237,9 +267,15 @@ class RelationsTest
     {
         this.runner.group('Nested Relations');
         await TestHelpers.cleanDatabase(this.dataServer);
-        await this.categoriesRepo.create(CategoriesFixtures.category_relations_1);
-        await this.productsRepo.create(ProductsFixtures.product_relations_1);
-        await this.reviewsRepo.create(ReviewsFixtures.review_relations_1);
+        await TestHelpers.insertFixturesViaRawSQL(this.dataServer, 'test_categories', [
+            CategoriesFixtures.category_relations_1
+        ]);
+        await TestHelpers.insertFixturesViaRawSQL(this.dataServer, 'test_products', [
+            ProductsFixtures.product_relations_1
+        ]);
+        await TestHelpers.insertFixturesViaRawSQL(this.dataServer, 'test_reviews', [
+            ReviewsFixtures.review_relations_1
+        ]);
         await this.runner.test('should load nested relations (category > products > reviews)', async () => {
             let results = await this.categoriesRepo.loadWithRelations(
                 {id: 1600},
@@ -259,8 +295,12 @@ class RelationsTest
     {
         this.runner.group('Relation String Parsing');
         await TestHelpers.cleanDatabase(this.dataServer);
-        await this.categoriesRepo.create(CategoriesFixtures.category_relations_1);
-        await this.productsRepo.create(ProductsFixtures.product_relations_1);
+        await TestHelpers.insertFixturesViaRawSQL(this.dataServer, 'test_categories', [
+            CategoriesFixtures.category_relations_1
+        ]);
+        await TestHelpers.insertFixturesViaRawSQL(this.dataServer, 'test_products', [
+            ProductsFixtures.product_relations_1
+        ]);
         await this.runner.test('should parse comma-separated relations string', async () => {
             let results = await this.productsRepo.loadWithRelations(
                 {id: 2600},

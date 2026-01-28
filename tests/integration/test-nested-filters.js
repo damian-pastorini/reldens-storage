@@ -41,9 +41,11 @@ class NestedFiltersTest
     {
         this.runner.group('AND Operator');
         await TestHelpers.cleanDatabase(this.dataServer);
-        await this.categoriesRepo.create(CategoriesFixtures.category_filters_1);
-        await this.categoriesRepo.create(CategoriesFixtures.category_filters_2);
-        await this.categoriesRepo.create(CategoriesFixtures.category_filters_3);
+        await TestHelpers.insertFixturesViaRawSQL(this.dataServer, 'test_categories', [
+            CategoriesFixtures.category_filters_1,
+            CategoriesFixtures.category_filters_2,
+            CategoriesFixtures.category_filters_3
+        ]);
         await this.runner.test('should filter with simple AND condition', async () => {
             let results = await this.categoriesRepo.load({
                 AND: [
@@ -82,9 +84,11 @@ class NestedFiltersTest
     {
         this.runner.group('OR Operator');
         await TestHelpers.cleanDatabase(this.dataServer);
-        await this.categoriesRepo.create(CategoriesFixtures.category_filters_1);
-        await this.categoriesRepo.create(CategoriesFixtures.category_filters_2);
-        await this.categoriesRepo.create(CategoriesFixtures.category_filters_3);
+        await TestHelpers.insertFixturesViaRawSQL(this.dataServer, 'test_categories', [
+            CategoriesFixtures.category_filters_1,
+            CategoriesFixtures.category_filters_2,
+            CategoriesFixtures.category_filters_3
+        ]);
         await this.runner.test('should filter with simple OR condition', async () => {
             let results = await this.categoriesRepo.load({
                 OR: [
@@ -121,9 +125,11 @@ class NestedFiltersTest
     {
         this.runner.group('Nested AND/OR');
         await TestHelpers.cleanDatabase(this.dataServer);
-        await this.categoriesRepo.create(CategoriesFixtures.category_filters_1);
-        await this.categoriesRepo.create(CategoriesFixtures.category_filters_2);
-        await this.categoriesRepo.create(CategoriesFixtures.category_filters_3);
+        await TestHelpers.insertFixturesViaRawSQL(this.dataServer, 'test_categories', [
+            CategoriesFixtures.category_filters_1,
+            CategoriesFixtures.category_filters_2,
+            CategoriesFixtures.category_filters_3
+        ]);
         await this.runner.test('should filter with OR inside AND', async () => {
             let results = await this.categoriesRepo.load({
                 AND: [
@@ -180,9 +186,11 @@ class NestedFiltersTest
     {
         this.runner.group('NOT Operator');
         await TestHelpers.cleanDatabase(this.dataServer);
-        await this.categoriesRepo.create(CategoriesFixtures.category_filters_1);
-        await this.categoriesRepo.create(CategoriesFixtures.category_filters_2);
-        await this.categoriesRepo.create(CategoriesFixtures.category_filters_3);
+        await TestHelpers.insertFixturesViaRawSQL(this.dataServer, 'test_categories', [
+            CategoriesFixtures.category_filters_1,
+            CategoriesFixtures.category_filters_2,
+            CategoriesFixtures.category_filters_3
+        ]);
         await this.runner.test('should filter with NOT operator', async () => {
             let results = await this.categoriesRepo.load({
                 is_active: {operator: 'not', value: 0}
@@ -209,9 +217,11 @@ class NestedFiltersTest
     {
         this.runner.group('IN Operator');
         await TestHelpers.cleanDatabase(this.dataServer);
-        await this.categoriesRepo.create(CategoriesFixtures.category_filters_1);
-        await this.categoriesRepo.create(CategoriesFixtures.category_filters_2);
-        await this.categoriesRepo.create(CategoriesFixtures.category_filters_3);
+        await TestHelpers.insertFixturesViaRawSQL(this.dataServer, 'test_categories', [
+            CategoriesFixtures.category_filters_1,
+            CategoriesFixtures.category_filters_2,
+            CategoriesFixtures.category_filters_3
+        ]);
         await this.runner.test('should filter with IN operator', async () => {
             let results = await this.categoriesRepo.load({
                 display_order: {operator: 'in', value: [1, 2]}
@@ -239,8 +249,10 @@ class NestedFiltersTest
     {
         this.runner.group('LIKE Operator');
         await TestHelpers.cleanDatabase(this.dataServer);
-        await this.categoriesRepo.create(CategoriesFixtures.category_filters_1);
-        await this.categoriesRepo.create(CategoriesFixtures.category_filters_2);
+        await TestHelpers.insertFixturesViaRawSQL(this.dataServer, 'test_categories', [
+            CategoriesFixtures.category_filters_1,
+            CategoriesFixtures.category_filters_2
+        ]);
         await this.runner.test('should filter with LIKE operator', async () => {
             let results = await this.categoriesRepo.load({
                 name: {operator: 'like', value: '%Filters%'}
@@ -272,9 +284,11 @@ class NestedFiltersTest
     {
         this.runner.group('Comparison Operators');
         await TestHelpers.cleanDatabase(this.dataServer);
-        await this.categoriesRepo.create(CategoriesFixtures.category_filters_1);
-        await this.categoriesRepo.create(CategoriesFixtures.category_filters_2);
-        await this.categoriesRepo.create(CategoriesFixtures.category_filters_3);
+        await TestHelpers.insertFixturesViaRawSQL(this.dataServer, 'test_categories', [
+            CategoriesFixtures.category_filters_1,
+            CategoriesFixtures.category_filters_2,
+            CategoriesFixtures.category_filters_3
+        ]);
         await this.runner.test('should filter with gt operator', async () => {
             let results = await this.categoriesRepo.load({
                 display_order: {operator: 'gt', value: 1}
@@ -309,9 +323,13 @@ class NestedFiltersTest
     {
         this.runner.group('Complex Nested Scenarios');
         await TestHelpers.cleanDatabase(this.dataServer);
-        await this.categoriesRepo.create(CategoriesFixtures.category_filters_1);
-        await this.productsRepo.create(ProductsFixtures.product_filters_1);
-        await this.productsRepo.create(ProductsFixtures.product_filters_2);
+        await TestHelpers.insertFixturesViaRawSQL(this.dataServer, 'test_categories', [
+            CategoriesFixtures.category_filters_1
+        ]);
+        await TestHelpers.insertFixturesViaRawSQL(this.dataServer, 'test_products', [
+            ProductsFixtures.product_filters_1,
+            ProductsFixtures.product_filters_2
+        ]);
         await this.runner.test('should handle complex filter with multiple operators', async () => {
             let results = await this.productsRepo.load({
                 AND: [
@@ -358,7 +376,9 @@ class NestedFiltersTest
     {
         this.runner.group('Edge Cases');
         await TestHelpers.cleanDatabase(this.dataServer);
-        await this.categoriesRepo.create(CategoriesFixtures.category_filters_1);
+        await TestHelpers.insertFixturesViaRawSQL(this.dataServer, 'test_categories', [
+            CategoriesFixtures.category_filters_1
+        ]);
         await this.runner.test('should handle empty AND array', async () => {
             let results = await this.categoriesRepo.load({AND: []});
             assert.ok(results);

@@ -297,6 +297,40 @@ class TestHelpers
         }
     }
 
+    static async insertFixturesViaRawSQL(dataServer, tableName, fixtures)
+    {
+        for(let fixture of fixtures){
+            let sql = this.generateInsertSQL(tableName, fixture);
+            await dataServer.rawQuery(sql);
+        }
+    }
+
+    static generateInsertSQL(tableName, data)
+    {
+        let columns = Object.keys(data);
+        let values = columns.map(col => this.formatSQLValue(data[col]));
+        return 'INSERT INTO '+tableName+' ('+columns.join(', ')+') VALUES ('+values.join(', ')+')';
+    }
+
+    static formatSQLValue(value)
+    {
+        if(null === value || undefined === value){
+            return 'NULL';
+        }
+        if('number' === typeof value){
+            return value;
+        }
+        if('boolean' === typeof value){
+            return value ? 1 : 0;
+        }
+        if('object' === typeof value){
+            let json = JSON.stringify(value).replace(/'/g, "\\'");
+            return '\''+json+'\'';
+        }
+        let escaped = value.toString().replace(/'/g, "\\'");
+        return '\''+escaped+'\'';
+    }
+
     static async dropTestTables(dataServer)
     {
         try {

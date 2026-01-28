@@ -89,7 +89,9 @@ class DriversTest
     {
         this.runner.group('UPDATE Operations');
         await TestHelpers.cleanDatabase(this.dataServer);
-        await this.categoriesRepo.create(CategoriesFixtures.category_update_by_id);
+        await TestHelpers.insertFixturesViaRawSQL(this.dataServer, 'test_categories', [
+            CategoriesFixtures.category_update_by_id
+        ]);
         await this.runner.test('should update record by ID', async () => {
             let updated = await this.categoriesRepo.updateById(1100, {name: 'Updated Name'});
             assert.ok(updated);
@@ -118,9 +120,11 @@ class DriversTest
     {
         this.runner.group('QUERY Operations');
         await TestHelpers.cleanDatabase(this.dataServer);
-        await this.categoriesRepo.create(CategoriesFixtures.category_query_1);
-        await this.categoriesRepo.create(CategoriesFixtures.category_query_2);
-        await this.categoriesRepo.create(CategoriesFixtures.category_query_3);
+        await TestHelpers.insertFixturesViaRawSQL(this.dataServer, 'test_categories', [
+            CategoriesFixtures.category_query_1,
+            CategoriesFixtures.category_query_2,
+            CategoriesFixtures.category_query_3
+        ]);
         await this.runner.test('should load all records', async () => {
             let all = await this.categoriesRepo.loadAll();
             assert.strictEqual(all.length, 3);
@@ -176,8 +180,10 @@ class DriversTest
     {
         this.runner.group('DELETE Operations');
         await TestHelpers.cleanDatabase(this.dataServer);
-        await this.categoriesRepo.create(CategoriesFixtures.category_delete_by_id);
-        await this.categoriesRepo.create(CategoriesFixtures.category_delete_by_filters);
+        await TestHelpers.insertFixturesViaRawSQL(this.dataServer, 'test_categories', [
+            CategoriesFixtures.category_delete_by_id,
+            CategoriesFixtures.category_delete_by_filters
+        ]);
         await this.runner.test('should delete record by ID', async () => {
             let result = await this.categoriesRepo.deleteById(1200);
             assert.ok(result);
@@ -196,9 +202,15 @@ class DriversTest
     {
         this.runner.group('REVIEWS CRUD Operations');
         await TestHelpers.cleanDatabase(this.dataServer);
-        await this.categoriesRepo.create(CategoriesFixtures.category_reviews_crud);
-        await this.productsRepo.create(ProductsFixtures.product_reviews_crud);
-        await this.reviewsRepo.create(ReviewsFixtures.review_crud_1);
+        await TestHelpers.insertFixturesViaRawSQL(this.dataServer, 'test_categories', [
+            CategoriesFixtures.category_reviews_crud
+        ]);
+        await TestHelpers.insertFixturesViaRawSQL(this.dataServer, 'test_products', [
+            ProductsFixtures.product_reviews_crud
+        ]);
+        await TestHelpers.insertFixturesViaRawSQL(this.dataServer, 'test_reviews', [
+            ReviewsFixtures.review_crud_1
+        ]);
         await this.runner.test('should create review record', async () => {
             let created = await this.reviewsRepo.loadById(3400);
             assert.ok(created);
@@ -219,7 +231,9 @@ class DriversTest
             assert.ok(result);
         });
         await this.runner.test('should load reviews by product_id', async () => {
-            await this.reviewsRepo.create(ReviewsFixtures.review_crud_1);
+            await TestHelpers.insertFixturesViaRawSQL(this.dataServer, 'test_reviews', [
+                ReviewsFixtures.review_crud_1
+            ]);
             let reviews = await this.reviewsRepo.loadBy('product_id', 2400);
             assert.strictEqual(reviews.length, 1);
         });
