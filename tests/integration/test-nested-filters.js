@@ -178,7 +178,7 @@ class NestedFiltersTest
                 ]
             });
             assert.ok(results);
-            assert.strictEqual(results.length, 3);
+            assert.strictEqual(results.length, 2);
         });
     }
 

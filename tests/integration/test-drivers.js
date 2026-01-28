@@ -40,27 +40,27 @@ class DriversTest
         this.runner.group('CREATE Operations');
         await TestHelpers.cleanDatabase(this.dataServer);
         await this.categoriesRepo.create(CategoriesFixtures.category_create_single);
-        await this.categoriesRepo.create(CategoriesFixtures.category_create_json);
-        await this.productsRepo.create(ProductsFixtures.product_create_json);
-        await this.categoriesRepo.create(CategoriesFixtures.category_create_enum);
-        await this.productsRepo.create(ProductsFixtures.product_create_enum);
+        let categoryJson = await this.categoriesRepo.create(CategoriesFixtures.category_create_json);
+        await this.productsRepo.create({...ProductsFixtures.product_create_json, category_id: categoryJson.id});
+        let categoryEnum = await this.categoriesRepo.create(CategoriesFixtures.category_create_enum);
+        await this.productsRepo.create({...ProductsFixtures.product_create_enum, category_id: categoryEnum.id});
         await this.categoriesRepo.create(CategoriesFixtures.category_unique_test);
         await this.runner.test('should create single record', async () => {
-            let created = await this.categoriesRepo.loadById(1001);
+            let created = await this.categoriesRepo.loadOne({slug: 'electronics'});
             assert.ok(created);
-            assert.strictEqual(created.id, 1001);
+            assert.ok(created.id);
             assert.strictEqual(created.name, 'Electronics');
         });
         await this.runner.test('should create record with JSON field', async () => {
-            let category = await this.categoriesRepo.loadById(1002);
-            let product = await this.productsRepo.loadById(2001);
+            let category = await this.categoriesRepo.loadOne({slug: 'books'});
+            let product = await this.productsRepo.loadOne({sku: 'LAPTOP-PRO-15'});
             assert.ok(category);
             assert.ok(product);
             assert.ok(product.metadata);
         });
         await this.runner.test('should create record with ENUM field', async () => {
-            let category = await this.categoriesRepo.loadById(1003);
-            let product = await this.productsRepo.loadById(2002);
+            let category = await this.categoriesRepo.loadOne({slug: 'clothing'});
+            let product = await this.productsRepo.loadOne({sku: 'TSHIRT-CLASSIC'});
             assert.ok(category);
             assert.ok(product);
             assert.strictEqual(product.status, 'published');
@@ -163,16 +163,29 @@ class DriversTest
             assert.strictEqual(count, 1);
         });
         await this.runner.test('should apply limit', async () => {
-            let records = await this.categoriesRepo.loadAll({}, {limit: 2});
+            this.categoriesRepo.limit = 2;
+            let records = await this.categoriesRepo.load();
             assert.strictEqual(records.length, 2);
+            this.categoriesRepo.limit = 0;
         });
         await this.runner.test('should apply offset', async () => {
-            let records = await this.categoriesRepo.loadAll({}, {offset: 1, limit: 2});
+            this.categoriesRepo.offset = 1;
+            this.categoriesRepo.limit = 2;
+            let records = await this.categoriesRepo.load();
             assert.strictEqual(records.length, 2);
+            this.categoriesRepo.offset = 0;
+            this.categoriesRepo.limit = 0;
         });
         await this.runner.test('should apply sortBy and sortDirection', async () => {
-            let records = await this.categoriesRepo.loadAll({}, {sortBy: 'name', sortDirection: 'DESC'});
+            this.categoriesRepo.sortBy = 'name';
+            this.categoriesRepo.sortDirection = 'DESC';
+            let records = await this.categoriesRepo.load();
+            assert.strictEqual(records.length, 3);
             assert.strictEqual(records[0].name, 'Query Test 3');
+            assert.strictEqual(records[1].name, 'Query Test 2');
+            assert.strictEqual(records[2].name, 'Query Test 1');
+            this.categoriesRepo.sortBy = false;
+            this.categoriesRepo.sortDirection = 'ASC';
         });
     }
 

@@ -7,8 +7,6 @@
 
 module.exports.ProductsFixtures = {
     product_create_json: {
-        id: 2001,
-        category_id: 1002,
         name: 'Laptop Pro 15',
         description: 'High-performance laptop',
         sku: 'LAPTOP-PRO-15',
@@ -20,8 +18,6 @@ module.exports.ProductsFixtures = {
         status: 'published'
     },
     product_create_enum: {
-        id: 2002,
-        category_id: 1003,
         name: 'T-Shirt Classic',
         description: 'Cotton t-shirt',
         sku: 'TSHIRT-CLASSIC',
@@ -33,7 +29,6 @@ module.exports.ProductsFixtures = {
         status: 'published'
     },
     product_fk_test: {
-        id: 2003,
         category_id: 9999,
         name: 'Invalid Category Product',
         description: 'Product with invalid category FK',

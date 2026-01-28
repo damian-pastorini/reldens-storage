@@ -7,7 +7,6 @@
 
 module.exports.CategoriesFixtures = {
     category_create_single: {
-        id: 1001,
         name: 'Electronics',
         description: 'Electronic devices and gadgets',
         is_active: 1,
@@ -15,7 +14,6 @@ module.exports.CategoriesFixtures = {
         slug: 'electronics'
     },
     category_create_json: {
-        id: 1002,
         name: 'Books',
         description: 'Books and literature',
         is_active: 1,
@@ -23,7 +21,6 @@ module.exports.CategoriesFixtures = {
         slug: 'books'
     },
     category_create_enum: {
-        id: 1003,
         name: 'Clothing',
         description: 'Apparel and fashion',
         is_active: 0,
@@ -31,7 +28,6 @@ module.exports.CategoriesFixtures = {
         slug: 'clothing'
     },
     category_unique_test: {
-        id: 1004,
         name: 'Sports',
         description: 'Sports equipment and gear',
         is_active: 1,
