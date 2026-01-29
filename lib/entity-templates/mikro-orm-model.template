@@ -25,6 +25,7 @@ class {{modelClassName}}
 
 const schema = new EntitySchema({
     class: {{modelClassName}},
+    tableName: '{{tableName}}',
     properties: {
         {{entityPropertiesDefinition}}
     },
