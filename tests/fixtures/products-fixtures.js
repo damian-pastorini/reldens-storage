@@ -104,5 +104,16 @@ module.exports.ProductsFixtures = {
         metadata: JSON.stringify({test: 'relations'}),
         tags: 'test,relations',
         status: 'published'
+    },
+    product_create_nested: {
+        name: 'Nested Create Product',
+        description: 'Product for createWithRelations test',
+        sku: 'NESTED-PROD-001',
+        price: 99.99,
+        stock_quantity: 10,
+        is_featured: 0,
+        metadata: JSON.stringify({test: 'nested'}),
+        tags: 'test,nested',
+        status: 'draft'
     }
 };

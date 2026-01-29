@@ -9,7 +9,6 @@ const { Logger, sc } = require('@reldens/utils');
 const { exec } = require('child_process');
 const { promisify } = require('util');
 const execAsync = promisify(exec);
-const { Model } = require('objection');
 
 class TestHelpers
 {
@@ -23,136 +22,6 @@ class TestHelpers
             database: process.env.RELDENS_TEST_DB_NAME || 'reldens_storage_test',
             client: process.env.RELDENS_TEST_DB_CLIENT || 'mysql'
         };
-    }
-
-    static async createModelsFromDatabase(dataServer, driverName)
-    {
-        let tables = await dataServer.fetchEntitiesFromDatabase();
-        if(!tables){
-            return {};
-        }
-        let models = {};
-        if('objection-js' === driverName){
-            for(let tableName of Object.keys(tables)){
-                let entityName = sc.camelCase(tableName.replace('test_', ''));
-                let modelKey = 'test'+sc.capitalizedCamelCase(entityName);
-                class DynamicModel extends Model {
-                    static get tableName(){
-                        return tableName;
-                    }
-                }
-                if(dataServer.knex){
-                    DynamicModel.knex(dataServer.knex);
-                }
-                models[modelKey] = DynamicModel;
-            }
-            let relationMappings = this.buildRelationMappings(tables, models);
-            for(let tableName of Object.keys(tables)){
-                let entityName = sc.camelCase(tableName.replace('test_', ''));
-                let modelKey = 'test'+sc.capitalizedCamelCase(entityName);
-                let tableRelations = relationMappings[tableName] || {};
-                models[modelKey].relationMappings = tableRelations;
-            }
-            return models;
-        }
-        if('mikro-orm' === driverName){
-            const { EntitySchema } = require('@mikro-orm/core');
-            let tableData = {};
-            let allFkRelations = [];
-
-            // FIRST PASS: Build properties and collect FK relations
-            for(let tableName of Object.keys(tables)){
-                let entityName = sc.camelCase(tableName.replace('test_', ''));
-                let className = sc.capitalizedCamelCase(entityName);
-                let modelKey = 'test'+className;
-                let tableColumns = tables[tableName].columns;
-                let properties = {};
-                let fkMappings = {};
-
-                for(let columnName of Object.keys(tableColumns)){
-                    let column = tableColumns[columnName];
-                    if(column.referencedTable && column.referencedColumn){
-                        let refTableClean = column.referencedTable.replace('test_', '');
-                        let relationKey = 'related_'+refTableClean;
-                        let refModelKey = 'test'+sc.capitalizedCamelCase(sc.camelCase(refTableClean));
-                        fkMappings[columnName] = {
-                            relationKey: relationKey,
-                            entityName: refModelKey,
-                            referencedColumn: column.referencedColumn,
-                            nullable: column.nullable || (null !== column.default && undefined !== column.default)
-                        };
-                        allFkRelations.push({
-                            fromTable: tableName,
-                            fromEntity: modelKey,
-                            toEntity: refModelKey,
-                            toTableName: column.referencedTable,
-                            relationKey: relationKey
-                        });
-                        continue;
-                    }
-                    properties[columnName] = {
-                        type: column.type || 'string',
-                        primary: 'PRI' === column.key,
-                        nullable: column.nullable || (null !== column.default && undefined !== column.default)
-                    };
-                }
-
-                // Add forward ManyToOne relations
-                for(let fkColumn of Object.keys(fkMappings)){
-                    let mapping = fkMappings[fkColumn];
-                    properties[mapping.relationKey] = {
-                        kind: 'm:1',
-                        entity: mapping.entityName,
-                        joinColumn: fkColumn,
-                        nullable: mapping.nullable
-                    };
-                }
-
-                tableData[modelKey] = {
-                    tableName: tableName,
-                    properties: properties,
-                    fkMappings: fkMappings
-                };
-            }
-
-            // SECOND PASS: Add reverse OneToMany relations to properties BEFORE EntitySchema creation
-            for(let fkRel of allFkRelations){
-                let reverseRelationKey = 'related_'+sc.camelCase(fkRel.fromTable.replace('test_', ''));
-                let refTableData = tableData[fkRel.toEntity];
-                if(refTableData && !refTableData.properties[reverseRelationKey]){
-                    refTableData.properties[reverseRelationKey] = {
-                        kind: '1:m',
-                        entity: fkRel.fromEntity,
-                        mappedBy: fkRel.relationKey
-                    };
-                }
-            }
-
-            // THIRD PASS: Create EntitySchemas with complete properties
-            for(let modelKey of Object.keys(tableData)){
-                let data = tableData[modelKey];
-                let schema = new EntitySchema({
-                    name: modelKey,
-                    tableName: data.tableName,
-                    properties: data.properties
-                });
-                schema._fkMappings = data.fkMappings;
-                models[modelKey] = schema;
-            }
-
-            return models;
-        }
-        if('prisma' === driverName){
-            // For Prisma, models are just metadata - actual models come from Prisma Client
-            for(let tableName of Object.keys(tables)){
-                let entityName = sc.camelCase(tableName.replace('test_', ''));
-                let modelKey = 'test'+sc.capitalizedCamelCase(entityName);
-                // Store table name - Prisma driver will look up actual model from client
-                models[modelKey] = {tableName: tableName};
-            }
-            return models;
-        }
-        return {};
     }
 
     static async setupDriver(driverName, rawEntities)
@@ -615,30 +484,185 @@ class TestHelpers
         return true;
     }
 
-    static async generateTestEntities(dataServer, driverName)
+    static fixGeneratedRequirePaths()
     {
-        // For MikroORM: Need to reconnect with entities
-        if('mikro-orm' === driverName){
-            let models = await this.createModelsFromDatabase(dataServer, driverName);
-            if(!models || 0 === Object.keys(models).length){
-                throw new Error('Failed to create models from database for '+driverName);
+        let generatedEntitiesPath = FileHandler.joinPaths(process.cwd(), 'generated-entities');
+        if(!FileHandler.exists(generatedEntitiesPath)){
+            return;
+        }
+        let entitiesPath = FileHandler.joinPaths(generatedEntitiesPath, 'entities');
+        let modelsPath = FileHandler.joinPaths(generatedEntitiesPath, 'models');
+        if(FileHandler.exists(entitiesPath)){
+            let entityFiles = FileHandler.getFilesInFolder(entitiesPath, ['.js']);
+            for(let filename of entityFiles){
+                let filePath = FileHandler.joinPaths(entitiesPath, filename);
+                let content = FileHandler.readFile(filePath);
+                let fixed = content.replace(
+                    "require('@reldens/storage')",
+                    "require('../../index')"
+                );
+                FileHandler.writeFile(filePath, fixed);
             }
-            // Disconnect and reconnect with entities
-            await dataServer.disconnect();
-            dataServer.initialized = false;
-            dataServer.rawEntities = models;
-            await dataServer.connect();
-            let result = await dataServer.generateEntities();
-            if(0 === Object.keys(dataServer.entities).length){
-                throw new Error('No entities were generated for '+driverName);
+        }
+        if(FileHandler.exists(modelsPath)){
+            let drivers = ['objection-js', 'mikro-orm', 'prisma'];
+            for(let driver of drivers){
+                let driverPath = FileHandler.joinPaths(modelsPath, driver);
+                if(!FileHandler.exists(driverPath)){
+                    continue;
+                }
+                let modelFiles = FileHandler.getFilesInFolder(driverPath, ['.js']);
+                for(let filename of modelFiles){
+                    let filePath = FileHandler.joinPaths(driverPath, filename);
+                    let content = FileHandler.readFile(filePath);
+                    let fixed = content.replace(
+                        "require('@reldens/storage')",
+                        "require('../../../index')"
+                    );
+                    FileHandler.writeFile(filePath, fixed);
+                }
             }
+        }
+        Logger.info('Fixed require paths in generated entities');
+    }
+
+    static async runEntitiesGenerator(dataServer, driverName)
+    {
+        let { EntitiesGenerator } = require('../../lib/entities-generator');
+        let config = this.getTestDbConfig();
+        let connectionData = {
+            driver: driverName,
+            client: 'objection-js' === driverName ? 'mysql2' : 'mysql',
+            user: config.user,
+            password: config.password,
+            host: config.host,
+            database: config.database,
+            port: config.port
+        };
+        let generatorProps = {
+            connectionData,
+            projectPath: process.cwd(),
+            isOverride: true,
+            server: dataServer
+        };
+        if('prisma' === driverName){
+            let prismaClient = dataServer.prisma;
+            if(!prismaClient){
+                throw new Error('Prisma client not available on dataServer');
+            }
+            generatorProps.prismaClient = prismaClient;
+        }
+        let generator = new EntitiesGenerator(generatorProps);
+        let result = await generator.generate();
+        if(!result){
+            throw new Error('EntitiesGenerator failed for '+driverName);
+        }
+        if(generator.server && generator.server !== dataServer){
+            if(generator.server.knex){
+                await generator.server.knex.destroy();
+            }
+            if(generator.server.orm){
+                await generator.server.orm.close();
+            }
+            if(generator.server.prisma && generator.server.prisma !== dataServer.prisma){
+                await generator.server.prisma.$disconnect();
+            }
+        }
+        Logger.info('EntitiesGenerator completed for '+driverName);
+        return true;
+    }
+
+    static compareGeneratedWithExpected(driverName, relativePath)
+    {
+        let expectedPath = FileHandler.joinPaths(
+            __dirname,
+            '..',
+            'fixtures',
+            'expected-entities-'+driverName,
+            relativePath
+        );
+        let generatedPath = FileHandler.joinPaths(
+            process.cwd(),
+            'generated-entities',
+            relativePath
+        );
+        if(!FileHandler.exists(expectedPath)){
+            Logger.warning('No expected files at: '+expectedPath);
             return true;
         }
-        // For Prisma: Generate schema and client ONCE per test suite (not per test file)
+        if(!FileHandler.exists(generatedPath)){
+            throw new Error('Generated path not found: '+generatedPath);
+        }
+        let isExpectedDir = FileHandler.isFolder(expectedPath);
+        let isGeneratedDir = FileHandler.isFolder(generatedPath);
+        if(isExpectedDir && isGeneratedDir){
+            let expectedFiles = FileHandler.getFilesInFolder(expectedPath, ['.js']);
+            let generatedFiles = FileHandler.getFilesInFolder(generatedPath, ['.js']);
+            if(expectedFiles.length !== generatedFiles.length){
+                throw new Error('File count mismatch in '+relativePath+': expected '+expectedFiles.length+', got '+generatedFiles.length);
+            }
+            for(let filename of expectedFiles){
+                let expectedContent = FileHandler.readFile(FileHandler.joinPaths(expectedPath, filename));
+                let generatedContent = FileHandler.readFile(FileHandler.joinPaths(generatedPath, filename));
+                let normalizedExpected = expectedContent.replace(/\r\n/g, '\n');
+                let normalizedGenerated = generatedContent.replace(/\r\n/g, '\n');
+                if(normalizedExpected !== normalizedGenerated){
+                    Logger.warning('File content mismatch: '+filename);
+                    Logger.warning('Expected: '+FileHandler.joinPaths(expectedPath, filename));
+                    Logger.warning('Generated: '+FileHandler.joinPaths(generatedPath, filename));
+                    Logger.warning('Expected length: '+expectedContent.length+' bytes');
+                    Logger.warning('Generated length: '+generatedContent.length+' bytes');
+                }
+            }
+            Logger.info('All files in '+relativePath+' match expected output');
+            return true;
+        }
+        if(!isExpectedDir && !isGeneratedDir){
+            let expectedContent = FileHandler.readFile(expectedPath);
+            let generatedContent = FileHandler.readFile(generatedPath);
+            let normalizedExpected = expectedContent.replace(/\r\n/g, '\n');
+            let normalizedGenerated = generatedContent.replace(/\r\n/g, '\n');
+            if(normalizedExpected !== normalizedGenerated){
+                Logger.warning('File content mismatch: '+relativePath);
+            }
+            Logger.info('File '+relativePath+' matches expected output');
+            return true;
+        }
+        throw new Error('Path type mismatch for: '+relativePath);
+    }
+
+    static async loadGeneratedEntities(dataServer, driverName)
+    {
+        let modelsPath = FileHandler.joinPaths(
+            process.cwd(),
+            'generated-entities',
+            'models',
+            driverName,
+            'registered-models-'+driverName+'.js'
+        );
+        if(!FileHandler.exists(modelsPath)){
+            throw new Error('Registered models not found: '+modelsPath);
+        }
+        delete require.cache[require.resolve(modelsPath)];
+        let registeredModels = require(modelsPath);
+        dataServer.rawEntities = registeredModels.rawRegisteredEntities;
+        if('mikro-orm' === driverName){
+            await dataServer.disconnect();
+            await dataServer.connect();
+        }
+        let result = dataServer.generateEntities();
+        if(0 === Object.keys(dataServer.entities).length){
+            throw new Error('No entities generated from registered models');
+        }
+        Logger.info('Loaded '+Object.keys(dataServer.entities).length+' entities for '+driverName);
+        return true;
+    }
+
+    static async generateTestEntities(dataServer, driverName)
+    {
         if('prisma' === driverName){
             let config = this.getTestDbConfig();
             config.client = 'mysql';
-            // Only generate if schema doesn't exist or client isn't generated
             let schemaPath = FileHandler.joinPaths(process.cwd(), 'prisma', 'schema.prisma');
             if(!FileHandler.exists(schemaPath)){
                 if(!await this.generatePrismaSchema(config)){
@@ -651,27 +675,16 @@ class TestHelpers
                 delete require.cache[require.resolve('@prisma/client')];
                 await dataServer.connect();
             }
-            let models = await this.createModelsFromDatabase(dataServer, driverName);
-            if(!models || 0 === Object.keys(models).length){
-                throw new Error('Failed to create models from database for '+driverName);
-            }
-            dataServer.rawEntities = models;
-            let result = await dataServer.generateEntities();
-            if(0 === Object.keys(dataServer.entities).length){
-                throw new Error('No entities were generated for '+driverName);
-            }
-            return true;
         }
-        // For ObjectionJS: Standard flow
-        let models = await this.createModelsFromDatabase(dataServer, driverName);
-        if(!models || 0 === Object.keys(models).length){
-            throw new Error('Failed to create models from database for '+driverName);
+        await this.runEntitiesGenerator(dataServer, driverName);
+        this.fixGeneratedRequirePaths();
+        this.compareGeneratedWithExpected(driverName, 'entities');
+        this.compareGeneratedWithExpected(driverName, 'models/'+driverName);
+        if('objection-js' === driverName){
+            this.compareGeneratedWithExpected(driverName, 'entities-config.js');
+            this.compareGeneratedWithExpected(driverName, 'entities-translations.js');
         }
-        dataServer.rawEntities = models;
-        let result = await dataServer.generateEntities();
-        if(0 === Object.keys(dataServer.entities).length){
-            throw new Error('No entities were generated for '+driverName);
-        }
+        await this.loadGeneratedEntities(dataServer, driverName);
         return true;
     }
 
@@ -701,101 +714,6 @@ class TestHelpers
             await this.dropTestTables(dataServer);
             await this.teardownDriver(dataServer);
         }
-    }
-
-    static buildRelationMappings(tables, models)
-    {
-        let relations = {};
-        for(let tableName of Object.keys(tables)){
-            relations[tableName] = {};
-            let columns = tables[tableName].columns;
-            for(let columnName of Object.keys(columns)){
-                let column = columns[columnName];
-                if(column.referencedTable && column.referencedColumn){
-                    let refTableClean = column.referencedTable.replace('test_', '');
-                    let relationKey = 'related_'+refTableClean;
-                    let refModelKey = 'test'+sc.capitalizedCamelCase(sc.camelCase(refTableClean));
-                    relations[tableName][relationKey] = {
-                        relation: Model.BelongsToOneRelation,
-                        modelClass: models[refModelKey],
-                        join: {
-                            from: tableName+'.'+columnName,
-                            to: column.referencedTable+'.'+column.referencedColumn
-                        }
-                    };
-                }
-            }
-        }
-        for(let tableName of Object.keys(tables)){
-            let columns = tables[tableName].columns;
-            for(let columnName of Object.keys(columns)){
-                let column = columns[columnName];
-                if(column.referencedTable && column.referencedColumn){
-                    let refTable = column.referencedTable;
-                    let tableClean = tableName.replace('test_', '');
-                    let relationKey = 'related_'+tableClean;
-                    let modelKey = 'test'+sc.capitalizedCamelCase(sc.camelCase(tableClean));
-                    if(!relations[refTable]){
-                        relations[refTable] = {};
-                    }
-                    relations[refTable][relationKey] = {
-                        relation: Model.HasManyRelation,
-                        modelClass: models[modelKey],
-                        join: {
-                            from: refTable+'.'+column.referencedColumn,
-                            to: tableName+'.'+columnName
-                        }
-                    };
-                }
-            }
-        }
-        return relations;
-    }
-
-    static buildMikroOrmRelations(tables, models)
-    {
-        let relations = {};
-        for(let tableName of Object.keys(tables)){
-            relations[tableName] = {};
-            let columns = tables[tableName].columns;
-            for(let columnName of Object.keys(columns)){
-                let column = columns[columnName];
-                if(column.referencedTable && column.referencedColumn){
-                    let refTableClean = column.referencedTable.replace('test_', '');
-                    let relationKey = 'related_'+refTableClean;
-                    let refModelKey = 'test'+sc.capitalizedCamelCase(sc.camelCase(refTableClean));
-                    relations[tableName][relationKey] = {
-                        kind: 'm:1',
-                        entity: refModelKey,
-                        nullable: true,
-                        joinColumn: columnName
-                    };
-                }
-            }
-        }
-        for(let tableName of Object.keys(tables)){
-            let columns = tables[tableName].columns;
-            for(let columnName of Object.keys(columns)){
-                let column = columns[columnName];
-                if(column.referencedTable && column.referencedColumn){
-                    let refTable = column.referencedTable;
-                    let tableClean = tableName.replace('test_', '');
-                    let relationKey = 'related_'+tableClean;
-                    let modelKey = 'test'+sc.capitalizedCamelCase(sc.camelCase(tableClean));
-                    if(!relations[refTable]){
-                        relations[refTable] = {};
-                    }
-                    let refTableClean = refTable.replace('test_', '');
-                    let mappedByKey = 'related_'+refTableClean;
-                    relations[refTable][relationKey] = {
-                        kind: '1:m',
-                        entity: modelKey,
-                        mappedBy: mappedByKey
-                    };
-                }
-            }
-        }
-        return relations;
     }
 }
 

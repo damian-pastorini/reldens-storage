@@ -246,14 +246,9 @@ class RelationsTest
         this.runner.group('createWithRelations');
         await TestHelpers.cleanDatabase(this.dataServer);
         await this.runner.test('should create record with nested relations', async () => {
-            let categoryData = {...CategoriesFixtures.category_relations_1};
-            delete categoryData.id;
-            let productData = {...ProductsFixtures.product_relations_1};
-            delete productData.id;
-            delete productData.category_id;
             let categoryWithProducts = {
-                ...categoryData,
-                related_products: [productData]
+                ...CategoriesFixtures.category_create_nested,
+                related_products: [ProductsFixtures.product_create_nested]
             };
             let created = await this.categoriesRepo.createWithRelations(categoryWithProducts, ['related_products']);
             assert.ok(created);
@@ -265,9 +260,10 @@ class RelationsTest
         });
         await TestHelpers.cleanDatabase(this.dataServer);
         await this.runner.test('should create record without relations when not provided', async () => {
-            let categoryData = {...CategoriesFixtures.category_relations_1};
-            delete categoryData.id;
-            let created = await this.categoriesRepo.createWithRelations(categoryData, ['related_products']);
+            let created = await this.categoriesRepo.createWithRelations(
+                CategoriesFixtures.category_create_nested,
+                ['related_products']
+            );
             assert.ok(created);
             assert.ok(created.id);
         });

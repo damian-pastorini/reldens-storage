@@ -153,5 +153,12 @@ module.exports.CategoriesFixtures = {
         is_active: 1,
         display_order: 2,
         slug: 'relations-test-2'
+    },
+    category_create_nested: {
+        name: 'Nested Create Category',
+        description: 'Category for createWithRelations test',
+        is_active: 1,
+        display_order: 10,
+        slug: 'nested-create-category'
     }
 };

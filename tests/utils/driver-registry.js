@@ -35,10 +35,11 @@ class DriverRegistry
         Logger.info('INITIALIZING SHARED DRIVER REGISTRY');
         Logger.info('========================================');
         for(let driverName of this.driverNames){
+            let dataServer = null;
             try {
                 Logger.info('REGISTRY: Setting up driver: '+driverName);
                 let rawEntities = {};
-                let dataServer = await TestHelpers.setupDriver(driverName, rawEntities);
+                dataServer = await TestHelpers.setupDriver(driverName, rawEntities);
                 let schemaSql = FileHandler.readFile(this.schemaPath);
                 await TestHelpers.executeRawSQL(dataServer, schemaSql);
                 await TestHelpers.generateTestEntities(dataServer, driverName);
@@ -58,6 +59,13 @@ class DriverRegistry
                 Logger.critical('REGISTRY: Failed to initialize driver '+driverName);
                 Logger.critical('ERROR: '+error.message);
                 Logger.critical('STACK: '+error.stack);
+                if(dataServer){
+                    try {
+                        await TestHelpers.teardownDriver(dataServer);
+                    } catch(cleanupError) {
+                        Logger.warning('Failed to disconnect '+driverName+' after init error: '+cleanupError.message);
+                    }
+                }
                 this.sharedState.drivers[driverName] = null;
                 this.sharedState.repos[driverName] = {};
             }
