@@ -30,7 +30,7 @@ const schema = new EntitySchema({
         {{entityPropertiesDefinition}}
     },
 });
-
+{{fkMappingsAttachment}}
 module.exports = {
     {{modelClassName}},
     entity: {{modelClassName}},

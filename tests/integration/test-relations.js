@@ -79,6 +79,25 @@ class RelationsTest
             assert.ok(results);
             assert.strictEqual(results.length, 1);
         });
+        await this.runner.test('should filter by nested relation properties', async () => {
+            await TestHelpers.cleanDatabase(this.dataServer);
+            await TestHelpers.insertFixturesViaRawSQL(this.dataServer, 'test_categories', [
+                CategoriesFixtures.category_relations_1,
+                CategoriesFixtures.category_relations_2
+            ]);
+            await TestHelpers.insertFixturesViaRawSQL(this.dataServer, 'test_products', [
+                {...ProductsFixtures.product_relations_1, id: 2600, category_id: 1600, price: 149.99},
+                {...ProductsFixtures.product_relations_1, id: 2601, category_id: 1601, price: 49.99}
+            ]);
+            let results = await this.categoriesRepo.loadWithRelations({
+                related_test_products: {
+                    price: {operator: 'gt', value: 100}
+                }
+            }, ['related_test_products']);
+            assert.ok(results);
+            assert.strictEqual(results.length, 1);
+            assert.strictEqual(results[0].id, 1600);
+        });
     }
 
     async testLoadAllWithRelations()

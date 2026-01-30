@@ -30,14 +30,14 @@ class TestReviewsModel
         const {id, product_id, reviewer_name, reviewer_email, rating, title, comment, is_verified, helpful_count, created_at, updated_at} = props;
         return new this(id, product_id, reviewer_name, reviewer_email, rating, title, comment, is_verified, helpful_count, created_at, updated_at);
     }
-    
+
 }
 
 const schema = new EntitySchema({
     class: TestReviewsModel,
+    tableName: 'test_reviews',
     properties: {
         id: { type: 'number', primary: true },
-        product_id: { type: 'number' },
         reviewer_name: { type: 'string' },
         reviewer_email: { type: 'string' },
         rating: { type: 'number' },
@@ -46,9 +46,22 @@ const schema = new EntitySchema({
         is_verified: { type: 'number' },
         helpful_count: { type: 'number' },
         created_at: { type: 'Date' },
-        updated_at: { type: 'Date' }
+        updated_at: { type: 'Date' },
+        related_test_products: {
+            kind: 'm:1',
+            entity: 'TestProductsModel',
+            joinColumn: 'product_id'
+        }
     },
 });
+schema._fkMappings = {
+    "product_id": {
+        "relationKey": "related_test_products",
+        "entityName": "TestProductsModel",
+        "referencedColumn": "id",
+        "nullable": false
+    }
+};
 
 module.exports = {
     TestReviewsModel,

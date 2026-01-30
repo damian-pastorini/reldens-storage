@@ -24,6 +24,7 @@ class DriverRegistry
         this.schemaPath = FileHandler.joinPaths(__dirname, '..', 'fixtures', 'sql', 'test-schema.sql');
         this.repoNames = ['testCategories', 'testProducts', 'testReviews'];
         this.driverNames = ['objection-js', 'mikro-orm', 'prisma'];
+        this.skipGeneration = false;
     }
 
     async initialize()
@@ -42,7 +43,7 @@ class DriverRegistry
                 dataServer = await TestHelpers.setupDriver(driverName, rawEntities);
                 let schemaSql = FileHandler.readFile(this.schemaPath);
                 await TestHelpers.executeRawSQL(dataServer, schemaSql);
-                await TestHelpers.generateTestEntities(dataServer, driverName);
+                await this.generateOrLoadEntities(dataServer, driverName);
                 let repos = {};
                 for(let entityName of this.repoNames){
                     let repo = dataServer.getEntity(entityName);
@@ -76,6 +77,15 @@ class DriverRegistry
         Logger.info('REGISTRY DEBUG: drivers keys = '+Object.keys(this.sharedState.drivers).join(', '));
         Logger.info('REGISTRY DEBUG: repos keys = '+Object.keys(this.sharedState.repos).join(', '));
         Logger.info('========================================');
+    }
+
+    async generateOrLoadEntities(dataServer, driverName)
+    {
+        if(this.skipGeneration){
+            Logger.info('REGISTRY: Skipping entity generation for '+driverName+' (using existing files)');
+            return await TestHelpers.loadGeneratedEntities(dataServer, driverName);
+        }
+        return await TestHelpers.generateTestEntities(dataServer, driverName);
     }
 
     getDriver(driverName)

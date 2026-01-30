@@ -31,6 +31,8 @@ class RunTests
         this.filter = null;
         this.suite = null;
         this.driver = null;
+        this.skipCleanup = false;
+        this.skipGeneration = false;
         this.driverRegistry = new DriverRegistry();
     }
 
@@ -49,6 +51,14 @@ class RunTests
                 this.driver = arg.split('=')[1];
                 process.stderr.write('Driver: '+this.driver+'\n');
             }
+            if('--skip-cleanup' === arg){
+                this.skipCleanup = true;
+                process.stderr.write('Skipping cleanup: YES\n');
+            }
+            if('--skip-generation' === arg){
+                this.skipGeneration = true;
+                process.stderr.write('Skipping entity generation: YES\n');
+            }
         }
     }
 
@@ -60,7 +70,9 @@ class RunTests
         process.stderr.write('Test execution started: '+sc.formatDate(new Date())+'\n\n');
         this.parseCommandLineArgs();
         let config = TestHelpers.getTestDbConfig();
-        TestHelpers.cleanupGeneratedFiles();
+        if(!this.skipCleanup){
+            TestHelpers.cleanupGeneratedFiles();
+        }
         await this.runPreFlightChecks(config);
         let hasIntegrationTests = !this.suite || this.suite === 'integration';
         let hasUnitTests = !this.suite || this.suite === 'unit';
@@ -75,6 +87,7 @@ class RunTests
         process.stderr.write('Integration tests: '+(hasIntegrationTests ? 'YES' : 'NO')+'\n');
         process.stderr.write('Unit tests: '+(hasUnitTests ? 'YES' : 'NO')+'\n\n');
         if(hasIntegrationTests){
+            this.driverRegistry.skipGeneration = this.skipGeneration;
             await this.driverRegistry.initialize();
             await this.runIntegrationTests();
         }

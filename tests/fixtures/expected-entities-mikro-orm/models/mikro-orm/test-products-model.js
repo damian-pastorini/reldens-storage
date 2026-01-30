@@ -32,14 +32,14 @@ class TestProductsModel
         const {id, category_id, name, sku, description, price, stock_quantity, is_featured, metadata, tags, status, created_at, updated_at} = props;
         return new this(id, category_id, name, sku, description, price, stock_quantity, is_featured, metadata, tags, status, created_at, updated_at);
     }
-    
+
 }
 
 const schema = new EntitySchema({
     class: TestProductsModel,
+    tableName: 'test_products',
     properties: {
         id: { type: 'number', primary: true },
-        category_id: { type: 'number' },
         name: { type: 'string' },
         sku: { type: 'string' },
         description: { type: 'string', nullable: true },
@@ -50,9 +50,27 @@ const schema = new EntitySchema({
         tags: { type: 'string', nullable: true },
         status: { type: 'undefined' },
         created_at: { type: 'Date' },
-        updated_at: { type: 'Date' }
+        updated_at: { type: 'Date' },
+        related_test_categories: {
+            kind: 'm:1',
+            entity: 'TestCategoriesModel',
+            joinColumn: 'category_id'
+        },
+        related_test_reviews: {
+            kind: '1:m',
+            entity: 'TestReviewsModel',
+            mappedBy: 'related_test_products'
+        }
     },
 });
+schema._fkMappings = {
+    "category_id": {
+        "relationKey": "related_test_categories",
+        "entityName": "TestCategoriesModel",
+        "referencedColumn": "id",
+        "nullable": false
+    }
+};
 
 module.exports = {
     TestProductsModel,

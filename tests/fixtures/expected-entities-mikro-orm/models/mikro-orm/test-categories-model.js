@@ -27,11 +27,12 @@ class TestCategoriesModel
         const {id, name, slug, description, is_active, display_order, created_at, updated_at} = props;
         return new this(id, name, slug, description, is_active, display_order, created_at, updated_at);
     }
-    
+
 }
 
 const schema = new EntitySchema({
     class: TestCategoriesModel,
+    tableName: 'test_categories',
     properties: {
         id: { type: 'number', primary: true },
         name: { type: 'string' },
@@ -40,7 +41,12 @@ const schema = new EntitySchema({
         is_active: { type: 'number' },
         display_order: { type: 'number' },
         created_at: { type: 'Date' },
-        updated_at: { type: 'Date' }
+        updated_at: { type: 'Date' },
+        related_test_products: {
+            kind: '1:m',
+            entity: 'TestProductsModel',
+            mappedBy: 'related_test_categories'
+        }
     },
 });
 
