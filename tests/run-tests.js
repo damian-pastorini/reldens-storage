@@ -64,10 +64,11 @@ class RunTests
 
     async run()
     {
-        process.stderr.write('='.repeat(60)+'\n');
-        process.stderr.write('@RELDENS/STORAGE - TEST SUITE\n');
-        process.stderr.write('='.repeat(60)+'\n');
-        process.stderr.write('Test execution started: '+sc.formatDate(new Date())+'\n\n');
+        Logger.info('='.repeat(60));
+        Logger.info('@RELDENS/STORAGE - TEST SUITE');
+        Logger.info('='.repeat(60));
+        Logger.info('Test execution started: '+sc.formatDate(new Date()));
+        Logger.info('');
         this.parseCommandLineArgs();
         let config = TestHelpers.getTestDbConfig();
         if(!this.skipCleanup){
@@ -84,8 +85,9 @@ class RunTests
                 hasIntegrationTests = false;
             }
         }
-        process.stderr.write('Integration tests: '+(hasIntegrationTests ? 'YES' : 'NO')+'\n');
-        process.stderr.write('Unit tests: '+(hasUnitTests ? 'YES' : 'NO')+'\n\n');
+        Logger.info('Integration tests: '+(hasIntegrationTests ? 'YES' : 'NO'));
+        Logger.info('Unit tests: '+(hasUnitTests ? 'YES' : 'NO'));
+        Logger.info('');
         if(hasIntegrationTests){
             this.driverRegistry.skipGeneration = this.skipGeneration;
             await this.driverRegistry.initialize();
@@ -94,13 +96,14 @@ class RunTests
         if(hasUnitTests){
             await this.runUnitTests();
         }
-        process.stderr.write('\n'+('='.repeat(60))+'\n');
-        process.stderr.write('FINAL TEST RESULTS\n');
-        process.stderr.write(('='.repeat(60))+'\n');
-        process.stderr.write('Total tests executed: '+this.allCounts.total+'\n');
-        process.stderr.write('Tests passed: '+this.allCounts.passed+'\n');
-        process.stderr.write('Tests failed: '+this.allCounts.failed+'\n');
-        process.stderr.write(('='.repeat(60))+'\n');
+        Logger.info('');
+        Logger.info('='.repeat(60));
+        Logger.info('FINAL TEST RESULTS');
+        Logger.info('='.repeat(60));
+        Logger.info('Total tests executed: '+this.allCounts.total);
+        Logger.info('Tests passed: '+this.allCounts.passed);
+        Logger.info('Tests failed: '+this.allCounts.failed);
+        Logger.info('='.repeat(60));
         if(hasIntegrationTests){
             await this.driverRegistry.cleanup();
         }
@@ -120,7 +123,7 @@ class RunTests
             let dataServer = this.driverRegistry.getDriver(driverName);
             let repos = this.driverRegistry.getRepos(driverName);
             if(!dataServer){
-                process.stderr.write('Driver '+driverName+' not available, skipping tests\n');
+                Logger.warning('Driver '+driverName+' not available, skipping tests');
                 continue;
             }
             try {
@@ -130,8 +133,8 @@ class RunTests
                 this.allCounts.passed += driversResult.passed;
                 this.allCounts.failed += driversResult.failed;
             } catch(error) {
-                process.stderr.write('Driver '+driverName+' tests crashed: '+error.message+'\n');
-                process.stderr.write(error.stack+'\n');
+                Logger.critical('Driver '+driverName+' tests crashed: '+error.message);
+                Logger.critical(error.stack);
             }
             try {
                 let nestedFiltersTest = new NestedFiltersTest(dataServer, repos, driverName);
@@ -140,8 +143,8 @@ class RunTests
                 this.allCounts.passed += nestedFiltersResult.passed;
                 this.allCounts.failed += nestedFiltersResult.failed;
             } catch(error) {
-                process.stderr.write('Driver '+driverName+' nested filters tests crashed: '+error.message+'\n');
-                process.stderr.write(error.stack+'\n');
+                Logger.critical('Driver '+driverName+' nested filters tests crashed: '+error.message);
+                Logger.critical(error.stack);
             }
             try {
                 let relationsTest = new RelationsTest(dataServer, repos, driverName);
@@ -150,8 +153,8 @@ class RunTests
                 this.allCounts.passed += relationsResult.passed;
                 this.allCounts.failed += relationsResult.failed;
             } catch(error) {
-                process.stderr.write('Driver '+driverName+' relations tests crashed: '+error.message+'\n');
-                process.stderr.write(error.stack+'\n');
+                Logger.critical('Driver '+driverName+' relations tests crashed: '+error.message);
+                Logger.critical(error.stack);
             }
         }
     }
@@ -177,15 +180,15 @@ class RunTests
 
     async runPreFlightChecks(config)
     {
-        Logger.info('========================================');
+        Logger.info('='.repeat(60));
         Logger.info('Pre-Flight Checks');
-        Logger.info('========================================');
+        Logger.info('='.repeat(60));
         if(!TestHelpers.verifyAllPackages()){
             Logger.critical('Package verification failed');
             process.exit(1);
         }
         Logger.info('All pre-flight checks passed');
-        Logger.info('========================================');
+        Logger.info('='.repeat(60));
     }
 
 }

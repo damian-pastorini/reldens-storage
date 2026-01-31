@@ -32,9 +32,9 @@ class DriverRegistry
         if(this.sharedState.initialized){
             return;
         }
-        Logger.info('========================================');
+        Logger.info('='.repeat(60));
         Logger.info('INITIALIZING SHARED DRIVER REGISTRY');
-        Logger.info('========================================');
+        Logger.info('='.repeat(60));
         for(let driverName of this.driverNames){
             let dataServer = null;
             try {
@@ -72,11 +72,11 @@ class DriverRegistry
             }
         }
         this.sharedState.initialized = true;
-        Logger.info('========================================');
+        Logger.info('='.repeat(60));
         Logger.info('DRIVER REGISTRY INITIALIZED - instanceId = '+this.sharedState.instanceId);
         Logger.info('REGISTRY DEBUG: drivers keys = '+Object.keys(this.sharedState.drivers).join(', '));
         Logger.info('REGISTRY DEBUG: repos keys = '+Object.keys(this.sharedState.repos).join(', '));
-        Logger.info('========================================');
+        Logger.info('='.repeat(60));
     }
 
     async generateOrLoadEntities(dataServer, driverName)
@@ -106,9 +106,9 @@ class DriverRegistry
 
     async cleanup()
     {
-        Logger.info('========================================');
+        Logger.info('='.repeat(60));
         Logger.info('CLEANING UP DRIVER REGISTRY');
-        Logger.info('========================================');
+        Logger.info('='.repeat(60));
         for(let driverName of this.driverNames){
             let dataServer = this.sharedState.drivers[driverName];
             if(dataServer){
