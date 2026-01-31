@@ -107,7 +107,7 @@ class DriversTest
         });
         await this.runner.test('should upsert when record does not exist', async () => {
             let newData = CategoriesFixtures.category_upsert_new;
-            let result = await this.categoriesRepo.upsert({id: newData.id}, newData);
+            let result = await this.categoriesRepo.upsert(newData, {id: newData.id});
             assert.ok(result);
         });
         await this.runner.test('should upsert when record exists', async () => {

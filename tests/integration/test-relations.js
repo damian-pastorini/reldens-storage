@@ -87,7 +87,7 @@ class RelationsTest
             ]);
             await TestHelpers.insertFixturesViaRawSQL(this.dataServer, 'test_products', [
                 {...ProductsFixtures.product_relations_1, id: 2600, category_id: 1600, price: 149.99},
-                {...ProductsFixtures.product_relations_1, id: 2601, category_id: 1601, price: 49.99}
+                {...ProductsFixtures.product_relations_2, id: 2601, category_id: 1601, price: 49.99}
             ]);
             let results = await this.categoriesRepo.loadWithRelations({
                 related_test_products: {
