@@ -191,7 +191,14 @@ npx reldens-storage-prisma --host=<host> --database=<db> --user=<user> --passwor
 
 **EntitiesTranslationsGeneration** (`lib/generators/entities-translations-generation.js`):
 - Generates `entities-translations.js` file
-- Creates i18n translation keys for entities
+- Creates i18n translation keys for entities and fields
+- Generates two types of translations:
+  - Table labels: Human-readable entity names
+  - Entity-specific field translations: Field labels per entity
+- Methods:
+  - `getTranslationLabels()`: Generates table name translations
+  - `getFieldTranslations()`: Generates entity-specific field translations
+  - `formatFieldName()`: Converts field names to human-readable labels (e.g., `owner_id` → `Owner ID`)
 
 **BaseGenerator** (`lib/generators/base-generator.js`):
 - Base class for all generators
@@ -255,7 +262,9 @@ All generated files are created in the **generated-entities/** directory:
 
 **Configuration Files:**
 - entities-config.js (entity relation configuration)
-- entities-translations.js (translation keys)
+- entities-translations.js (translation keys with two sections):
+  - `labels`: Table name translations (e.g., `'skills_class_path': 'Class Paths'`)
+  - `fields`: Entity-specific field translations (e.g., `'skills_class_path': {'id': 'ID', 'key': 'Key'}`)
 
 ## Relation Keys Pattern
 

@@ -45,11 +45,11 @@ class RunTests
             }
             if(arg.startsWith('--suite=')){
                 this.suite = arg.split('=')[1];
-                Logger.info('Suite: '+this.suite+'\n');
+                Logger.info('Suite: '+this.suite);
             }
             if(arg.startsWith('--driver=')){
                 this.driver = arg.split('=')[1];
-                Logger.info('Driver: '+this.driver+'\n');
+                Logger.info('Driver: '+this.driver);
             }
             if('--skip-cleanup' === arg){
                 this.skipCleanup = true;

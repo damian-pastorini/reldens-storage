@@ -22,7 +22,7 @@ class TestRunner
     suite(name)
     {
         this.currentSuite = name;
-        Logger.info('\n▶ '+name);
+        Logger.info('▶ '+name);
     }
 
     group(name)

@@ -584,7 +584,7 @@ class TestHelpers
             __dirname,
             '..',
             'fixtures',
-            'expected-entities-'+driverName,
+            relativePath.startsWith('models/') ? 'expected-entities-'+driverName : 'expected-entities',
             relativePath
         );
         let generatedPath = FileHandler.joinPaths(
