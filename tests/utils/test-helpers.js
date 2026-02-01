@@ -29,7 +29,9 @@ class TestHelpers
         try {
             Logger.info('Setting up driver: '+driverName);
             let config = this.getTestDbConfig();
-            Logger.info('DB Config: '+JSON.stringify({host: config.host, port: config.port, database: config.database, user: config.user}));
+            Logger.info('DB Config: '
+                +JSON.stringify({host: config.host, port: config.port, database: config.database, user: config.user})
+            );
             if('prisma' === driverName){
                 let subprocessSuccess = await this.runPrismaSubprocess(process.cwd(), config);
                 if(!subprocessSuccess){
@@ -265,7 +267,9 @@ class TestHelpers
         }
         let packageJson = JSON.parse(FileHandler.readFile(packagePath));
         if(version && packageJson.version !== version){
-            Logger.warning('Package '+packageName+' version mismatch. Expected: '+version+', Found: '+packageJson.version);
+            Logger.warning(
+                'Package '+packageName+' version mismatch. Expected: '+version+', Found: '+packageJson.version
+            );
         }
         Logger.info('Package '+packageName+' verified: '+packageJson.version);
         return true;
@@ -274,12 +278,14 @@ class TestHelpers
     static verifyAllPackages()
     {
         let required = [
-            {name: 'knex', version: '3.1.0'},
-            {name: 'objection', version: '3.1.5'},
-            {name: 'mysql2', version: '3.16.0'},
-            {name: '@mikro-orm/core', version: '6.6.4'},
-            {name: '@mikro-orm/mysql', version: '6.6.4'},
+            {name: '@mikro-orm/core', version: '6.6.6'},
+            {name: "@mikro-orm/mongodb", version: "6.6.6"},
+            {name: '@mikro-orm/mysql', version: '6.6.6'},
             {name: '@prisma/client', version: '6.19.2'},
+            {name: 'knex', version: '3.1.0'},
+            {name: 'mysql', version: '2.18.1'},
+            {name: 'mysql2', version: '3.16.2'},
+            {name: 'objection', version: '3.1.5'},
             {name: 'prisma', version: '6.19.2'}
         ];
         let allVerified = true;

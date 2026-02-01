@@ -75,7 +75,11 @@ class DriversUnitTest
         this.runner.group('Driver: '+driver.name+' - Shared public methods');
         for(let methodName of this.SHARED_PUBLIC_METHODS){
             await this.runner.test('should have method '+methodName, async () => {
-                assert.strictEqual(typeof driver.class.prototype[methodName], 'function', driver.name+' should implement '+methodName);
+                assert.strictEqual(
+                    typeof driver.class.prototype[methodName],
+                    'function',
+                    driver.name+' should implement '+methodName
+                );
             });
         }
     }

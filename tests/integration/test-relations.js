@@ -19,7 +19,6 @@ class RelationsTest
         this.dataServer = dataServer;
         this.categoriesRepo = repos.testCategories;
         this.productsRepo = repos.testProducts;
-        this.reviewsRepo = repos.testReviews;
         this.driverName = driverName;
         this.runner = new TestRunner();
     }

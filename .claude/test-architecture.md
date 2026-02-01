@@ -917,6 +917,13 @@ SESSION END
 - ✅ Removed logging from `setupDriver()`
 - ✅ Removed logging from `executeRawSQL()`
 
+**test-runner.js:**
+- ✅ Added Logger import: `const { Logger } = require('@reldens/utils');`
+- ✅ Replaced `process.stderr.write()` with Logger methods (lines 24, 30, 41, 45, 46)
+- ✅ Uses `Logger.info()` for test progress (suite, group, passed tests)
+- ✅ Uses `Logger.error()` for test failures and error messages
+- ✅ Follows Rule #29 from ai-coding-rules.md (no direct console/stderr output)
+
 ---
 
 ## Performance Comparison

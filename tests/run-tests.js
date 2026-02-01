@@ -41,23 +41,23 @@ class RunTests
         for(let arg of process.argv){
             if(arg.startsWith('--filter=')){
                 this.filter = arg.split('=')[1];
-                process.stderr.write('Filter applied: '+this.filter+'\n');
+                Logger.info('Filter applied: '+this.filter+'\n');
             }
             if(arg.startsWith('--suite=')){
                 this.suite = arg.split('=')[1];
-                process.stderr.write('Suite: '+this.suite+'\n');
+                Logger.info('Suite: '+this.suite+'\n');
             }
             if(arg.startsWith('--driver=')){
                 this.driver = arg.split('=')[1];
-                process.stderr.write('Driver: '+this.driver+'\n');
+                Logger.info('Driver: '+this.driver+'\n');
             }
             if('--skip-cleanup' === arg){
                 this.skipCleanup = true;
-                process.stderr.write('Skipping cleanup: YES\n');
+                Logger.info('Skipping cleanup: YES\n');
             }
             if('--skip-generation' === arg){
                 this.skipGeneration = true;
-                process.stderr.write('Skipping entity generation: YES\n');
+                Logger.info('Skipping entity generation: YES\n');
             }
         }
     }
@@ -194,20 +194,20 @@ class RunTests
 }
 
 process.on('unhandledRejection', (reason, promise) => {
-    process.stderr.write('Unhandled Rejection at: '+promise+' reason: '+reason+'\n');
-    process.stderr.write('(Test suite will continue)\n');
+    Logger.info('Unhandled Rejection at: '+promise+' reason: '+reason+'\n');
+    Logger.info('(Test suite will continue)\n');
 });
 
 process.on('uncaughtException', (error) => {
-    process.stderr.write('Uncaught Exception: '+error.message+'\n');
-    process.stderr.write(error.stack+'\n');
-    process.stderr.write('(Test suite will continue)\n');
+    Logger.info('Uncaught Exception: '+error.message+'\n');
+    Logger.info(error.stack+'\n');
+    Logger.info('(Test suite will continue)\n');
 });
 
 let runner = new RunTests();
 runner.run().catch(error => {
-    process.stderr.write('CATASTROPHIC ERROR: Test runner failed completely\n');
-    process.stderr.write('Error: '+error.message+'\n');
-    process.stderr.write(error.stack+'\n');
+    Logger.info('CATASTROPHIC ERROR: Test runner failed completely\n');
+    Logger.info('Error: '+error.message+'\n');
+    Logger.info(error.stack+'\n');
     process.exit(1);
 });

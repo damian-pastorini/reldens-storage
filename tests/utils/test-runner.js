@@ -5,6 +5,7 @@
  */
 
 const assert = require('node:assert');
+const { Logger } = require('@reldens/utils');
 
 class TestRunner
 {
@@ -21,13 +22,13 @@ class TestRunner
     suite(name)
     {
         this.currentSuite = name;
-        process.stderr.write('\n▶ '+name+'\n');
+        Logger.info('\n▶ '+name);
     }
 
     group(name)
     {
         this.currentGroup = name;
-        process.stderr.write('  ▶ '+name+'\n');
+        Logger.info('  ▶ '+name);
     }
 
     async test(name, testFn)
@@ -38,12 +39,12 @@ class TestRunner
             await testFn();
             this.passedCount++;
             let duration = Date.now() - startTime;
-            process.stderr.write('    ✔ '+name+' ('+duration+'ms)\n');
+            Logger.info('    ✔ '+name+' ('+duration+'ms)');
         } catch(error) {
             this.failedCount++;
             let duration = Date.now() - startTime;
-            process.stderr.write('    ✖ '+name+' ('+duration+'ms)\n');
-            process.stderr.write('      Error: '+error.message+'\n');
+            Logger.error('    ✖ '+name+' ('+duration+'ms)');
+            Logger.error('      Error: '+error.message);
         }
     }
 

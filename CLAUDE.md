@@ -585,8 +585,9 @@ This happens ONCE during the `before()` hook inside `generateTestEntities()`.
 - `tests/integration/test-nested-filters.js`: Complex filter syntax (AND/OR/NOT/IN/LIKE)
 - `tests/integration/test-relations.js`: Relation loading and nested relations
 
-**Test helpers:**
+**Test utilities:**
 - `tests/utils/test-helpers.js`: Database setup, entity generation, cleanup utilities
+- `tests/utils/test-runner.js`: Test framework with suite/group/test methods, uses Logger for output
 
 **All integration test files use the correct lifecycle pattern as of 2026-01-18.**
 

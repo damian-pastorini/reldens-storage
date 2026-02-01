@@ -60,7 +60,6 @@ class OutputFilter extends Transform
         if(this.buffer){
             this.push(this.buffer);
         }
-        // Output corrected summary (cancelled becomes fail)
         if(0 < this.stats.tests){
             this.push('\n');
             this.push('ℹ tests ' + this.stats.tests + '\n');

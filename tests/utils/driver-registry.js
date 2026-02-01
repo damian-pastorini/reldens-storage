@@ -53,8 +53,14 @@ class DriverRegistry
                 Logger.info('REGISTRY: About to assign driver '+driverName+' to registry');
                 this.sharedState.drivers[driverName] = dataServer;
                 this.sharedState.repos[driverName] = repos;
-                Logger.info('REGISTRY: Assigned! drivers['+driverName+'] = '+(this.sharedState.drivers[driverName] ? 'EXISTS' : 'NULL'));
-                Logger.info('REGISTRY: Assigned! repos['+driverName+'] = '+(this.sharedState.repos[driverName] ? 'EXISTS' : 'NULL'));
+                Logger.info(
+                    'REGISTRY: Assigned! drivers['+driverName+'] = '
+                    +(this.sharedState.drivers[driverName] ? 'EXISTS' : 'NULL')
+                );
+                Logger.info(
+                    'REGISTRY: Assigned! repos['+driverName+'] = '
+                    +(this.sharedState.repos[driverName] ? 'EXISTS' : 'NULL')
+                );
                 Logger.info('REGISTRY: Driver '+driverName+' initialized successfully');
             } catch(error) {
                 Logger.critical('REGISTRY: Failed to initialize driver '+driverName);
@@ -92,7 +98,10 @@ class DriverRegistry
     {
         Logger.info('REGISTRY: getDriver called - instanceId = '+this.sharedState.instanceId);
         let driverInstance = this.sharedState.drivers[driverName];
-        Logger.info('REGISTRY: getDriver('+driverName+') typeof = '+(typeof driverInstance)+', null? '+(driverInstance === null)+', undefined? '+(driverInstance === undefined));
+        Logger.info(
+            'REGISTRY: getDriver('+driverName+') typeof = '
+            +(typeof driverInstance)+', null? '+(driverInstance === null)+', undefined? '+(driverInstance === undefined)
+        );
         return driverInstance;
     }
 
@@ -100,7 +109,10 @@ class DriverRegistry
     {
         Logger.info('REGISTRY: getRepos called - instanceId = '+this.sharedState.instanceId);
         let reposObject = this.sharedState.repos[driverName];
-        Logger.info('REGISTRY: getRepos('+driverName+') typeof = '+(typeof reposObject)+', keys = '+(reposObject ? JSON.stringify(Object.keys(reposObject)) : 'NO VALUE'));
+        Logger.info(
+            'REGISTRY: getRepos('+driverName+') typeof = '
+            +(typeof reposObject)+', keys = '+(reposObject ? JSON.stringify(Object.keys(reposObject)) : 'NO VALUE')
+        );
         return reposObject;
     }
 

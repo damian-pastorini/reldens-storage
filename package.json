@@ -51,15 +51,15 @@
         "test:driver": "node tests/run-tests.js --driver="
     },
     "dependencies": {
-        "@mikro-orm/core": "6.6.5",
-        "@mikro-orm/mongodb": "6.6.5",
-        "@mikro-orm/mysql": "6.6.5",
+        "@mikro-orm/core": "6.6.6",
+        "@mikro-orm/mongodb": "6.6.6",
+        "@mikro-orm/mysql": "6.6.6",
         "@prisma/client": "6.19.2",
-        "@reldens/server-utils": "^0.45.0",
+        "@reldens/server-utils": "^0.46.0",
         "@reldens/utils": "^0.54.0",
         "knex": "3.1.0",
         "mysql": "2.18.1",
-        "mysql2": "3.16.1",
+        "mysql2": "3.16.2",
         "objection": "3.1.5",
         "prisma": "6.19.2"
     }

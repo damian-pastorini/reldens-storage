@@ -27,7 +27,7 @@ class TestCategoriesModel
         const {id, name, slug, description, is_active, display_order, created_at, updated_at} = props;
         return new this(id, name, slug, description, is_active, display_order, created_at, updated_at);
     }
-
+    
 }
 
 const schema = new EntitySchema({
@@ -38,10 +38,10 @@ const schema = new EntitySchema({
         name: { type: 'string' },
         slug: { type: 'string' },
         description: { type: 'string', nullable: true },
-        is_active: { type: 'number' },
-        display_order: { type: 'number' },
-        created_at: { type: 'Date' },
-        updated_at: { type: 'Date' },
+        is_active: { type: 'number', nullable: true },
+        display_order: { type: 'number', nullable: true },
+        created_at: { type: 'Date', nullable: true },
+        updated_at: { type: 'Date', nullable: true },
         related_test_products: {
             kind: '1:m',
             entity: 'TestProductsModel',

@@ -1,7 +1,7 @@
 /**
  *
  * Reldens - Nested Filters Integration Test
- * Tests complex filter syntax across all three storage drivers with actual database
+ * Tests complex filter syntax across all three storage drivers with an actual database
  *
  */
 
