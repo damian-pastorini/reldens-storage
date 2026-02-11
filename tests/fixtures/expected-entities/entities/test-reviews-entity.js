@@ -23,6 +23,7 @@ class TestReviewsEntity extends EntityProperties
             product_id: {
                 type: 'reference',
                 reference: 'test_products',
+                alias: 'related_test_products',
                 isRequired: true,
                 dbType: 'int'
             },

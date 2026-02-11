@@ -1,7 +1,7 @@
 {
     "name": "@reldens/storage",
     "scope": "@reldens",
-    "version": "0.90.0",
+    "version": "0.91.0",
     "description": "Reldens - Storage",
     "author": "Damian A. Pastorini",
     "license": "MIT",
@@ -59,7 +59,7 @@
         "@reldens/utils": "^0.54.0",
         "knex": "3.1.0",
         "mysql": "2.18.1",
-        "mysql2": "3.16.2",
+        "mysql2": "3.16.3",
         "objection": "3.1.5",
         "prisma": "6.19.2"
     }

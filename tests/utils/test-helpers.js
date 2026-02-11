@@ -284,7 +284,7 @@ class TestHelpers
             {name: '@prisma/client', version: '6.19.2'},
             {name: 'knex', version: '3.1.0'},
             {name: 'mysql', version: '2.18.1'},
-            {name: 'mysql2', version: '3.16.2'},
+            {name: 'mysql2', version: '3.16.3'},
             {name: 'objection', version: '3.1.5'},
             {name: 'prisma', version: '6.19.2'}
         ];

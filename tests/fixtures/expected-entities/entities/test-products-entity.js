@@ -23,6 +23,7 @@ class TestProductsEntity extends EntityProperties
             category_id: {
                 type: 'reference',
                 reference: 'test_categories',
+                alias: 'related_test_categories',
                 isRequired: true,
                 dbType: 'int'
             },
