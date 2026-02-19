@@ -1,0 +1,33 @@
+/**
+ *
+ * Reldens - {{entityClassName}}
+ *
+ */
+
+const { EntityProperties } = require('@reldens/storage');{{scRequire}}
+
+class {{entityClassName}} extends EntityProperties
+{
+
+    static propertiesConfig(extraProps)
+    {{{titlePropertyDeclaration}}
+        let properties = {
+            {{propertiesConfig}}
+        };
+        let propertiesKeys = Object.keys(properties);
+        {{showPropertiesDeclaration}}
+        {{editPropertiesRemoval}}
+        {{listPropertiesDeclaration}}
+        return {
+            showProperties,
+            editProperties,
+            listProperties,
+            filterProperties: listProperties,
+            properties,{{titlePropertyReturn}}
+            ...extraProps
+        };
+    }
+
+}
+
+module.exports.{{entityClassName}} = {{entityClassName}};

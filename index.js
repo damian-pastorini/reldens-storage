@@ -12,17 +12,48 @@ const { Model } = require('objection');
 const { MikroOrmDriver } = require('./lib/mikro-orm/mikro-orm-driver');
 const { MikroOrmDataServer } = require('./lib/mikro-orm/mikro-orm-data-server');
 const MikroOrmCore = require('@mikro-orm/core');
+const { EntitiesGenerator } = require('./lib/entities-generator');
+const { EntityProperties } = require('./lib/entity-properties');
+const { TypeMapper } = require('./lib/type-mapper');
+const { MySQLTablesProvider } = require('./lib/mysql-tables-provider');
+const { PrismaDriver } = require('./lib/prisma/prisma-driver');
+const { PrismaDataServer } = require('./lib/prisma/prisma-data-server');
+const { PrismaSchemaGenerator } = require('./lib/prisma/prisma-schema-generator');
+const { PrismaClientLoader } = require('./lib/prisma/prisma-client-loader');
+const { RELATION_PREFIX } = require('./lib/relation-key');
 
 module.exports = {
     // base:
-    BaseDataServer: BaseDataServer,
-    BaseDriver: BaseDriver,
+    BaseDataServer,
+    BaseDriver,
+    DriversMap: {
+        'objection-js': ObjectionJsDataServer,
+        'mikro-orm': MikroOrmDataServer,
+        'prisma': PrismaDataServer
+    },
+    DriversClassMap: {
+        'ObjectionJsDataServer': 'objection-js',
+        'MikroOrmDataServer': 'mikro-orm',
+        'PrismaDataServer': 'prisma'
+    },
     // objection-js:
-    ObjectionJsDataServer: ObjectionJsDataServer,
-    ObjectionJsDriver: ObjectionJsDriver,
+    ObjectionJsDataServer,
+    ObjectionJsDriver,
     ObjectionJsRawModel: Model,
     // mikro-orm:
     MikroOrmCore,
-    MikroOrmDataServer: MikroOrmDataServer,
-    MikroOrmDriver: MikroOrmDriver
+    MikroOrmDataServer,
+    MikroOrmDriver,
+    // prisma:
+    PrismaDataServer,
+    PrismaDriver,
+    PrismaSchemaGenerator,
+    PrismaClientLoader,
+    // entities:
+    EntitiesGenerator,
+    EntityProperties,
+    TypeMapper,
+    MySQLTablesProvider,
+    // relation key:
+    RELATION_PREFIX
 };

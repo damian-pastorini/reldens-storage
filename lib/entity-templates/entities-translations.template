@@ -1,0 +1,14 @@
+/**
+ *
+ * Reldens - Entities Translations
+ *
+ */
+
+module.exports.entitiesTranslations = {
+    labels: {
+        {{labels}}
+    },
+    fields: {
+        {{fields}}
+    }
+};

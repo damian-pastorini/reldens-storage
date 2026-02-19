@@ -1,0 +1,19 @@
+/**
+ *
+ * Reldens - {{modelClassName}}
+ *
+ */
+
+const { ObjectionJsRawModel } = require('@reldens/storage');
+
+class {{modelClassName}} extends ObjectionJsRawModel
+{
+
+    static get tableName()
+    {
+        return '{{tableName}}';
+    }
+{{idColumn}}{{modelRelations}}
+}
+
+module.exports.{{modelClassName}} = {{modelClassName}};

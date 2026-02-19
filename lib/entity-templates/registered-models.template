@@ -1,0 +1,19 @@
+/**
+ *
+ * Reldens - Registered Models
+ *
+ */
+
+{{registeredModels}}
+const { entitiesConfig } = require('../../entities-config');
+const { entitiesTranslations } = require('../../entities-translations');
+
+let rawRegisteredEntities = {
+    {{registeredEntitiesObject}}
+};
+
+module.exports.rawRegisteredEntities = rawRegisteredEntities;
+
+module.exports.entitiesConfig = entitiesConfig;
+
+module.exports.entitiesTranslations = entitiesTranslations;

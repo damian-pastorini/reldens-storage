@@ -1,0 +1,38 @@
+/**
+ *
+ * Reldens - {{modelClassName}}
+ *
+ */
+
+const { MikroOrmCore } = require('@reldens/storage');
+const { EntitySchema } = MikroOrmCore;
+
+class {{modelClassName}}
+{
+
+    constructor({{modelPropertiesList}})
+    {
+        {{modelPropertiesConstructor}}
+    }
+
+    static createByProps(props)
+    {
+        const {{{modelPropertiesList}}} = props;
+        return new this({{modelPropertiesList}});
+    }
+    {{modelRelations}}
+}
+
+const schema = new EntitySchema({
+    class: {{modelClassName}},
+    tableName: '{{tableName}}',
+    properties: {
+        {{entityPropertiesDefinition}}
+    },
+});
+{{fkMappingsAttachment}}
+module.exports = {
+    {{modelClassName}},
+    entity: {{modelClassName}},
+    schema: schema
+};

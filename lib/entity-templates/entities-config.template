@@ -1,0 +1,13 @@
+/**
+ *
+ * Reldens - Entities Config
+ *
+ */
+
+{{requireStatements}}
+
+let entitiesConfig = {
+    {{entitiesConfigExport}}
+};
+
+module.exports.entitiesConfig = entitiesConfig;

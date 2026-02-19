@@ -1,13 +1,17 @@
 {
     "name": "@reldens/storage",
     "scope": "@reldens",
-    "version": "0.28.0",
+    "version": "0.91.0",
     "description": "Reldens - Storage",
     "author": "Damian A. Pastorini",
     "license": "MIT",
     "homepage": "https://github.com/damian-pastorini/reldens-storage",
     "source": true,
     "main": "index.js",
+    "bin": {
+        "reldens-storage": "./bin/reldens-storage.js",
+        "reldens-storage-prisma": "./bin/generate-prisma-schema.js"
+    },
     "repository": {
         "type": "git",
         "url": "https://github.com/damian-pastorini/reldens-storage.git"
@@ -21,34 +25,42 @@
         "mikro",
         "mikroorm",
         "mikro-orm",
+        "prisma",
+        "prisma-orm",
         "driver",
         "orm",
         "database",
         "db",
         "system",
-        "game",
-        "mmorpg",
-        "rpg",
-        "dwd",
-        "colyseus",
-        "phaser",
-        "parcel",
         "nodejs",
-        "mmo",
-        "multiplayer",
-        "rol",
         "platform",
-        "framework"
+        "framework",
+        "library",
+        "lib"
     ],
     "bugs": {
         "url": "https://github.com/damian-pastorini/reldens-storage/issues"
     },
+    "scripts": {
+        "test": "node tests/run-tests.js",
+        "test:watch": "node --watch tests/run-tests.js",
+        "test:filter": "node tests/run-tests.js --filter=",
+        "test:unit": "node tests/run-tests.js --suite=unit",
+        "test:integration": "node tests/run-tests.js --suite=integration",
+        "test:coverage": "node --test --experimental-test-coverage tests/run-tests.js",
+        "test:driver": "node tests/run-tests.js --driver="
+    },
     "dependencies": {
-        "@mikro-orm/core": "^6.3.8",
-        "@mikro-orm/mongodb": "^6.3.8",
-        "@reldens/utils": "^0.36.0",
-        "knex": "^3.1.0",
-        "mysql": "^2.18.1",
-        "objection": "^3.1.4"
+        "@mikro-orm/core": "6.6.6",
+        "@mikro-orm/mongodb": "6.6.6",
+        "@mikro-orm/mysql": "6.6.6",
+        "@prisma/client": "6.19.2",
+        "@reldens/server-utils": "^0.46.0",
+        "@reldens/utils": "^0.54.0",
+        "knex": "3.1.0",
+        "mysql": "2.18.1",
+        "mysql2": "3.16.3",
+        "objection": "3.1.5",
+        "prisma": "6.19.2"
     }
 }
