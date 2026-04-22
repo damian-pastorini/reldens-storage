@@ -50,8 +50,8 @@ const schema = new EntitySchema({
         updated_at: { type: 'Date', nullable: true },
         related_test_products: {
             kind: 'm:1',
-            entity: 'TestProductsModel',
-            joinColumn: 'product_id'
+            entity: () => require('./test-products-model').TestProductsModel,
+            joinColumns: ['product_id']
         }
     },
 });

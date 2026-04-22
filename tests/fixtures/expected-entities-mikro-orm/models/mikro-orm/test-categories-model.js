@@ -44,7 +44,7 @@ const schema = new EntitySchema({
         updated_at: { type: 'Date', nullable: true },
         related_test_products: {
             kind: '1:m',
-            entity: 'TestProductsModel',
+            entity: () => require('./test-products-model').TestProductsModel,
             mappedBy: 'related_test_categories'
         }
     },

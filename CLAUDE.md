@@ -1,7 +1,3 @@
-# CLAUDE.md
-
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
-
 ## ⚠️ CRITICAL: The Library Works - Fix The Tests
 
 **This package is battle-tested in hundreds of production projects handling thousands of API calls successfully.**
@@ -128,6 +124,10 @@ npx reldens-storage-prisma --host=<host> --database=<db> --user=<user> --passwor
   - MongoDB support
   - Entity metadata decorators
   - Automatic schema synchronization
+- **MikroORM v7 breaking changes applied:**
+  - `prop.joinColumn` renamed to `prop.joinColumns` (now an array) - use `prop.joinColumns[0]`
+  - `entity` in relation properties must be a function reference, not a string: `entity: () => require('./model-file').ModelClass`
+  - `orm.driver.connection.options` removed (private in v7) - use `orm.config.get('dbName')` instead
 
 **Prisma Driver** (`lib/prisma/`):
 - `prisma-driver.js`: Driver implementation with enhanced validation
@@ -144,11 +144,17 @@ npx reldens-storage-prisma --host=<host> --database=<db> --user=<user> --passwor
   - Database default value support (skips validation for fields with defaults)
   - VARCHAR foreign key support using relation connect syntax
   - Introspection via `prisma db pull`
-  - Binary targets configuration
   - Data proxy support
   - Windows permission error handling
   - **Prisma.DbNull handling**: PrismaDataServer passes `Prisma.DbNull` to driver, which passes it to type caster
   - **Type caster isolation**: PrismaTypeCaster never requires `@prisma/client` directly, receives `prismaDbNull` as prop
+- **Prisma v7 breaking changes applied:**
+  - Requires `@prisma/adapter-mariadb` for MySQL connections (WASM engine mandates a driver adapter)
+  - `datasource` block in `schema.prisma` no longer accepts `url` - connection URL is provided via `prisma.config.js` generated at project root using `{ datasource: { url: process.env.DATABASE_URL } }`
+  - `PrismaClient` constructor no longer accepts `datasources` or `datasourceUrl` - use `adapter: new PrismaMariaDb(connectionString)` instead
+  - `provider = "prisma-client-js"` is kept (deprecated but functional); switching to `prisma-client` would require additional adapter changes
+  - `_runtimeDataModel` in Prisma 7 is pruned: fields only contain `{ name, kind, type, relationName, dbName }` - `isId`, `isRequired`, `hasDefaultValue` are stripped. ID field detection falls back to `field.name === 'id' && field.kind === 'scalar'`
+  - `prisma.config.js` at project root is generated automatically by `PrismaSchemaGenerator.generateConfigFile()` and cleaned up after tests
 
 ### Generators
 
@@ -465,9 +471,10 @@ PrismaClientLoader.load(projectPath, customPath, connectionData)
 - Otherwise, uses a default path: `projectPath/prisma/client`
 - Validates that Prisma Client exists at the path
 - Requires `prismaModule.PrismaClient` export
-- If `connectionData` is null: Uses default connection from Prisma schema datasource
-- If `connectionData` is provided: Builds custom connection string and overrides datasource
+- If `connectionData` is null: Creates adapter using `process.env.DATABASE_URL`
+- If `connectionData` is provided: Builds connection string and creates `PrismaMariaDb` adapter
 - Returns initialized PrismaClient instance
+- **Prisma v7**: Uses `@prisma/adapter-mariadb` - `PrismaClient` constructor receives `{ adapter }` instead of `{ datasources }`
 
 **Usage Examples:**
 
