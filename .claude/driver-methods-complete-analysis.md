@@ -1667,38 +1667,47 @@ async rawQuery(content)
 
 **Return type:** Array or false
 
-#### Prisma Implementation (prisma-data-server.js:118-134)
+#### Prisma Implementation (prisma-data-server.js:119-138)
 
 ```javascript
 async rawQuery(content)
 {
     try {
-        let statements = this.splitSqlStatements(content);
-        let results = [];
-        for(let statement of statements){
-            if(!statement.trim()){
-                continue;
-            }
-            let result = await this.prisma.$executeRawUnsafe(statement);
-            results.push(result);
+        let statements = this.splitSqlStatements(content)
+            .map(s => s.trim())
+            .filter(s => '' !== s);
+        if(0 === statements.length){
+            return false;
         }
-        return results;
-    } catch(error){
-        Logger.error('Prisma raw query error:', error.message);
+        let results = [];
+        await this.prisma.$transaction(
+            async (tx) => { results = await this.executeStatements(statements, tx); },
+            {timeout: 60000}
+        );
+        return 1 === results.length ? results[0] : results;
+    } catch(error) {
+        Logger.error('Raw query failed: '+error.message);
         return false;
     }
 }
 ```
 
-**Uses:** Prisma.$executeRawUnsafe()
-**Special:** Splits statements and executes separately
+**Uses:** `$transaction` wrapping `executeStatements()`, which calls `executeStatement()` per statement:
+- SELECT / SHOW → `$queryRawUnsafe` → returns rows array
+- CREATE / ALTER / DROP → `$executeRawUnsafe` → returns `{affectedRows: N}`
+- INSERT / UPDATE / DELETE → `$executeRawUnsafe` → returns affected row count
 
-**Return type:** Array or false
+**Return type:**
+- Empty content → `false`
+- Single statement → the result directly (not wrapped in array)
+- Multiple statements → array of results
+- Error → `false`
 
 **Consistency Analysis:**
-- ✅ **ALL CONSISTENT** - Return array or false
 - ✅ All execute raw SQL
-- ⚠️ Prisma splits multi-statement queries
+- ✅ All return false on error or empty input
+- ⚠️ **RETURN TYPE DIFFERS for single statements**: ObjectionJS and MikroORM always return array or false; Prisma returns the result directly (not in an array) for a single statement, and an array only for multiple statements
+- ⚠️ Prisma is the only driver that explicitly splits multi-statement strings and runs them atomically in a transaction
 
 ---
 

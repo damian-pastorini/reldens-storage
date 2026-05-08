@@ -11,6 +11,7 @@ const { DriverRegistry } = require('./utils/driver-registry');
 const DriversTest = require('./integration/test-drivers');
 const NestedFiltersTest = require('./integration/test-nested-filters');
 const RelationsTest = require('./integration/test-relations');
+const RawQueriesTest = require('./integration/test-raw-queries');
 const EntityManagerTest = require('./unit/test-entity-manager');
 const TypeMapperTest = require('./unit/test-type-mapper');
 const DriversUnitTest = require('./unit/test-drivers');
@@ -154,6 +155,16 @@ class RunTests
                 this.allCounts.failed += relationsResult.failed;
             } catch(error) {
                 Logger.critical('Driver '+driverName+' relations tests crashed: '+error.message);
+                Logger.critical(error.stack);
+            }
+            try {
+                let rawQueriesTest = new RawQueriesTest(dataServer, repos, driverName);
+                let rawQueriesResult = await rawQueriesTest.run();
+                this.allCounts.total += rawQueriesResult.total;
+                this.allCounts.passed += rawQueriesResult.passed;
+                this.allCounts.failed += rawQueriesResult.failed;
+            } catch(error) {
+                Logger.critical('Driver '+driverName+' raw queries tests crashed: '+error.message);
                 Logger.critical(error.stack);
             }
         }

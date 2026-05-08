@@ -365,107 +365,48 @@ async fetchEntitiesFromDatabase() {
 
 ### Critical: Tables Must Exist First!
 
-**File:** `tests/utils/test-helpers.js` (lines 389-416)
+**File:** `tests/utils/test-helpers.js`
 
 ```javascript
 static async generateTestEntities(dataServer, driverName)
 {
-    // Step 1: Introspect database (REQUIRES tables to exist!)
-    let models = await this.createModelsFromDatabase(dataServer, driverName);
-    if(!models || 0 === Object.keys(models).length){
-        throw new Error('Failed to create models from database for '+driverName);
-    }
-
-    // Step 2: PRISMA ONLY - Generate schema + client
+    // Prisma only: generate schema + client if not already present
     if('prisma' === driverName){
         let config = this.getTestDbConfig();
         config.client = 'mysql';
-
-        // Subprocess 1: Generate schema.prisma from database
-        if(!await this.generatePrismaSchema(config)){
-            throw new Error('Failed to generate Prisma schema');
-        }
-
-        // Subprocess 2: Generate PrismaClient code
-        if(!await this.generatePrismaClient()){
-            throw new Error('Failed to generate Prisma client');
-        }
-
-        // Step 3: Disconnect old client
-        await dataServer.disconnect();
-
-        // Step 4: Clear Node.js module cache
-        delete require.cache[require.resolve('@prisma/client')];
-
-        // Step 5: Reconnect with new client
-        if(!await dataServer.connect()){
-            throw new Error('Failed to reconnect Prisma client');
+        let schemaPath = FileHandler.joinPaths(process.cwd(), 'prisma', 'schema.prisma');
+        if(!FileHandler.exists(schemaPath)){
+            if(!await this.generatePrismaSchema(config)){
+                throw new Error('Failed to generate Prisma schema');
+            }
+            if(!await this.generatePrismaClient()){
+                throw new Error('Failed to generate Prisma client');
+            }
+            await dataServer.disconnect();
+            delete require.cache[require.resolve(FileHandler.joinPaths(process.cwd(), 'prisma', 'client'))];
+            await dataServer.connect();
         }
     }
-
-    // Step 3: Set rawEntities and generate driver instances
-    dataServer.rawEntities = models;
-    let result = await dataServer.generateEntities();
-    if(0 === Object.keys(dataServer.entities).length){
-        throw new Error('No entities were generated for '+driverName);
+    // Run EntitiesGenerator — introspects DB, writes entity + model files to generated-entities/
+    await this.runEntitiesGenerator(dataServer, driverName);
+    this.fixGeneratedRequirePaths();
+    this.compareGeneratedWithExpected(driverName, 'entities');
+    this.compareGeneratedWithExpected(driverName, 'models/'+driverName);
+    if('objection-js' === driverName){
+        this.compareGeneratedWithExpected(driverName, 'entities-config.js');
+        this.compareGeneratedWithExpected(driverName, 'entities-translations.js');
     }
-
+    // Load generated registered-models file and populate entity manager
+    await this.loadGeneratedEntities(dataServer, driverName);
     return true;
 }
 ```
 
-### createModelsFromDatabase Flow
+### Entity Generation Flow
 
-**Lines 31-69:**
+`runEntitiesGenerator()` creates an `EntitiesGenerator` instance pointed at the connected `dataServer`, calls `generator.generate()`, which internally calls `dataServer.fetchEntitiesFromDatabase()` to read real table metadata from `information_schema`. This is why tables must exist before calling `generateTestEntities()` — without tables, introspection returns empty and generation fails.
 
-```javascript
-static async createModelsFromDatabase(dataServer, driverName)
-{
-    // CRITICAL: This calls fetchEntitiesFromDatabase which reads actual tables
-    let tables = await dataServer.fetchEntitiesFromDatabase();
-    if(!tables){
-        return {};
-    }
-
-    let models = {};
-
-    if('objection-js' === driverName){
-        for(let tableName of Object.keys(tables)){
-            let entityName = sc.camelCase(tableName.replace('test_', ''));
-            // Creates dynamic Model class extending Objection Model
-            class DynamicModel extends Model {
-                static get tableName(){
-                    return tableName;
-                }
-            }
-            if(dataServer.knex){
-                DynamicModel.knex(dataServer.knex);
-            }
-            let modelKey = 'test'+sc.capitalizedCamelCase(entityName);
-            models[modelKey] = DynamicModel;
-        }
-        return models;
-    }
-
-    if('mikro-orm' === driverName){
-        for(let tableName of Object.keys(tables)){
-            let entityName = sc.camelCase(tableName.replace('test_', ''));
-            models['test'+sc.capitalizedCamelCase(entityName)] = {tableName: tableName};
-        }
-        return models;
-    }
-
-    if('prisma' === driverName){
-        for(let tableName of Object.keys(tables)){
-            let entityName = sc.camelCase(tableName.replace('test_', ''));
-            models['test'+sc.capitalizedCamelCase(entityName)] = {tableName: tableName};
-        }
-        return models;
-    }
-
-    return {};
-}
-```
+After generation, `loadGeneratedEntities()` loads the `generated-entities/models/[driver]/registered-models-[driver].js` file, sets `dataServer.rawEntities`, and calls `dataServer.generateEntities()` to register all driver instances in the entity manager.
 
 **Why tables must exist first:**
 - `fetchEntitiesFromDatabase()` queries MySQL `information_schema`
@@ -673,65 +614,49 @@ static async generatePrismaClient(){
 
 ### Per Driver Test Suite
 
-```
-1. before() hook - RUNS ONCE
-   ├─ setupDriver (connect to database)
-   ├─ executeRawSQL (create tables)
-   ├─ generateTestEntities (introspect + generate models)
-   └─ getEntity (get repository references)
+**1. Initialization — runs once per driver (`DriverRegistry.initialize()`):**
+- `setupDriver()` — connect to database
+- `executeRawSQL()` — create tables from SQL schema
+- `generateTestEntities()` — introspect DB, run EntitiesGenerator, load entities
+- `dataServer.getEntity()` — obtain repository references
 
-2. Test Suite Execution
-   │
-   ├─ describe('CREATE Operations')
-   │  ├─ beforeEach() → cleanDatabase (DELETE data)
-   │  ├─ it('should create single record')
-   │  ├─ beforeEach() → cleanDatabase (DELETE data)
-   │  ├─ it('should create with JSON field')
-   │  └─ ...
-   │
-   ├─ describe('UPDATE Operations')
-   │  ├─ beforeEach() → cleanDatabase (DELETE data)
-   │  ├─ it('should update by ID')
-   │  └─ ...
-   │
-   ├─ describe('QUERY Operations')
-   │  ├─ beforeEach() → cleanDatabase (DELETE data)
-   │  ├─ it('should load all records')
-   │  └─ ...
-   │
-   └─ describe('DELETE Operations')
-      ├─ beforeEach() → cleanDatabase (DELETE data)
-      ├─ it('should delete by ID')
-      └─ ...
+**2. Test execution — per group method in each test class:**
 
-3. after() hook - RUNS ONCE
-   ├─ dropTestTables (DROP all tables)
-   └─ teardownDriver (disconnect from database)
+Each test class (DriversTest, NestedFiltersTest, RelationsTest, RawQueriesTest) has group methods. Each group method begins with `await TestHelpers.cleanDatabase(this.dataServer)` to DELETE all rows, then runs its tests via `runner.test()`.
+
+Example:
+```javascript
+async testCreateOperations() {
+    this.runner.group('CREATE Operations');
+    await TestHelpers.cleanDatabase(this.dataServer);
+    // insert fixture data, then call runner.test() for each assertion
+}
 ```
+
+**3. Teardown — runs once per driver (`DriverRegistry.cleanup()`):**
+- `dropTestTables()` — DROP all test tables
+- `teardownDriver()` — disconnect from database
 
 ### All Drivers Execution
 
-```
-Driver: objection-js
-├─ before() → Connect, Create Tables, Generate Entities
-├─ Run 147 tests (with beforeEach DELETE between each)
-└─ after() → Drop Tables, Disconnect
+**Driver: objection-js**
+- Initialize: connect, create tables, generate entities
+- Run all tests (cleanDatabase at start of each group)
+- Teardown: drop tables, disconnect
 
-Driver: mikro-orm
-├─ before() → Connect, Create Tables, Generate Entities
-├─ Run 147 tests (with beforeEach DELETE between each)
-└─ after() → Drop Tables, Disconnect
+**Driver: mikro-orm**
+- Initialize: connect, create tables, generate entities
+- Run all tests (cleanDatabase at start of each group)
+- Teardown: drop tables, disconnect
 
-Driver: prisma
-├─ before() → Connect, Create Tables, Generate Schema, Generate Client, Reconnect, Generate Entities
-├─ Run 147 tests (with beforeEach DELETE between each)
-└─ after() → Drop Tables, Disconnect
-```
+**Driver: prisma**
+- Initialize: connect, create tables, generate Prisma schema (subprocess), generate Prisma client (subprocess), reconnect, generate entities
+- Run all tests (cleanDatabase at start of each group)
+- Teardown: drop tables, disconnect
 
 **Total connections:** 3 (one per driver)
 **Total table creations:** 3 (one per driver)
 **Total entity generations:** 3 (one per driver)
-**Total test executions:** 441 (147 tests × 3 drivers)
 
 ---
 
@@ -775,7 +700,7 @@ Driver: prisma
 
 **Symptoms:**
 - `fetchEntitiesFromDatabase()` returns empty/null
-- `createModelsFromDatabase()` returns empty object
+- `EntitiesGenerator.generate()` fails or produces no entities
 - Entity generation fails with "No entities generated"
 
 **Cause:**
@@ -828,59 +753,48 @@ Driver: prisma
 
 ## Summary: The Complete Flow
 
-```
-SESSION START
-    ↓
-FOR EACH DRIVER (objection-js, mikro-orm, prisma):
-    ↓
-    before() hook - RUNS ONCE:
-        1. Connect to database
-           ├─ ObjectionJS: Create Knex instance
-           ├─ MikroORM: Initialize MikroORM
-           └─ Prisma: Create PrismaClient (if generated)
+**For each driver (objection-js, mikro-orm, prisma):**
 
-        2. Create tables from SQL file
-           ├─ SET FOREIGN_KEY_CHECKS=0
-           ├─ DROP TABLE IF EXISTS (in order)
-           ├─ CREATE TABLE (with constraints)
-           └─ SET FOREIGN_KEY_CHECKS=1
+**Initialization — once per driver:**
 
-        3. Generate entities from database
-           ├─ Introspect database schema
-           ├─ Create model classes/objects
-           ├─ [Prisma only]: Generate schema → Generate client → Reconnect
-           ├─ Call dataServer.generateEntities()
-           └─ Get repository references
+1. Connect to database
+   - ObjectionJS: create Knex instance
+   - MikroORM: initialize MikroORM
+   - Prisma: create PrismaClient (if already generated)
 
-    FOR EACH TEST:
-        beforeEach() hook:
-            ├─ SET FOREIGN_KEY_CHECKS=0
-            ├─ DELETE FROM test_reviews
-            ├─ DELETE FROM test_products
-            ├─ DELETE FROM test_categories
-            └─ SET FOREIGN_KEY_CHECKS=1
+2. Create tables from SQL file
+   - SET FOREIGN_KEY_CHECKS=0
+   - DROP TABLE IF EXISTS (cleanup from previous run)
+   - CREATE TABLE (with all constraints)
+   - SET FOREIGN_KEY_CHECKS=1
 
-        Run test:
-            ├─ Create test data
-            ├─ Perform operations
-            ├─ Assert results
-            └─ (Data will be cleaned in next beforeEach)
+3. Generate entities from database
+   - Run EntitiesGenerator (introspects DB, writes files to generated-entities/)
+   - Prisma only: generate schema.prisma (subprocess), generate PrismaClient (subprocess), reconnect
+   - Load registered-models file, call dataServer.generateEntities()
 
-    after() hook - RUNS ONCE:
-        1. Drop all tables
-           ├─ SET FOREIGN_KEY_CHECKS=0
-           ├─ DROP TABLE IF EXISTS test_reviews
-           ├─ DROP TABLE IF EXISTS test_products
-           ├─ DROP TABLE IF EXISTS test_categories
-           └─ SET FOREIGN_KEY_CHECKS=1
+**Per test group — cleanDatabase() at start of each group method:**
+- SET FOREIGN_KEY_CHECKS=0
+- DELETE FROM test_reviews
+- DELETE FROM test_products
+- DELETE FROM test_categories
+- SET FOREIGN_KEY_CHECKS=1
 
-        2. Disconnect from database
-           ├─ ObjectionJS: await knex.destroy()
-           ├─ MikroORM: await orm.close()
-           └─ Prisma: await prisma.$disconnect()
+**Per test:** create test data, perform operations, assert results.
 
-SESSION END
-```
+**Teardown — once per driver:**
+
+1. Drop all tables
+   - SET FOREIGN_KEY_CHECKS=0
+   - DROP TABLE IF EXISTS test_reviews
+   - DROP TABLE IF EXISTS test_products
+   - DROP TABLE IF EXISTS test_categories
+   - SET FOREIGN_KEY_CHECKS=1
+
+2. Disconnect from database
+   - ObjectionJS: `await knex.destroy()`
+   - MikroORM: `await orm.close()`
+   - Prisma: `await prisma.$disconnect()`
 
 ---
 
@@ -888,7 +802,7 @@ SESSION END
 
 ### Integration Test Files (All Fixed)
 
-**test-cross-driver-compatibility.js:**
+**test-drivers.js:**
 - ✅ Changed `beforeEach` → `before` for setup
 - ✅ Added `beforeEach` for data cleanup only
 - ✅ Changed `afterEach` → `after` for teardown
@@ -906,6 +820,9 @@ SESSION END
 - ✅ Changed `afterEach` → `after` for teardown
 - ✅ Added error checking for entity generation
 
+**test-raw-queries.js:**
+- ✅ Added — covers rawQuery with single and multiple SQL statements
+
 ### Test Helpers (All Fixed)
 
 **test-helpers.js:**
@@ -913,7 +830,7 @@ SESSION END
 - ✅ Changed `cleanDatabase()` to use DELETE instead of DROP
 - ✅ Created `dropTestTables()` for final cleanup
 - ✅ Changed `generateTestEntities()` to throw errors instead of returning false
-- ✅ Removed logging from `createModelsFromDatabase()`
+- ✅ Replaced `createModelsFromDatabase()` with `runEntitiesGenerator()` + `loadGeneratedEntities()`
 - ✅ Removed logging from `setupDriver()`
 - ✅ Removed logging from `executeRawSQL()`
 
@@ -930,30 +847,25 @@ SESSION END
 
 ### Before Fixes (Wrong Pattern)
 
-```
-Driver: objection-js
-├─ Test 1: Connect (500ms) + Create Tables (1000ms) + Generate Entities (500ms) + Run (10ms) + Teardown (100ms) = 2110ms
-├─ Test 2: Connect (500ms) + Create Tables (1000ms) + Generate Entities (500ms) + Run (10ms) + Teardown (100ms) = 2110ms
-└─ ... × 147 tests = 310,170ms (5+ minutes per driver)
-
-Total for 3 drivers: ~15+ minutes
-```
+Each test reconnected, recreated tables, and regenerated entities independently:
+- Connect: ~500ms
+- Create tables: ~1000ms
+- Generate entities: ~500ms
+- Run test: ~10ms
+- Teardown: ~100ms
+- **Total per test: ~2110ms**
+- Total for 100 tests, 3 drivers: ~10+ minutes
 
 ### After Fixes (Correct Pattern)
 
-```
-Driver: objection-js
-├─ before(): Connect (500ms) + Create Tables (1000ms) + Generate Entities (500ms) = 2000ms
-├─ Test 1: DELETE (5ms) + Run (10ms) = 15ms
-├─ Test 2: DELETE (5ms) + Run (10ms) = 15ms
-├─ ... × 147 tests = 2205ms
-└─ after(): Drop Tables (100ms) + Teardown (100ms) = 200ms
+Setup and teardown happen once per driver. Only data cleanup runs between tests:
+- Setup once: connect + create tables + generate entities = ~2 seconds
+- Each test: DELETE data (~5ms) + run test (~10ms) = ~15ms
+- Teardown once: drop tables + disconnect = ~200ms
+- **Total for 100 tests, 1 driver: ~3.7 seconds**
+- Total for 3 drivers: ~10-15 seconds (includes Prisma subprocess generation)
 
-Total for 1 driver: ~2.4 seconds
-Total for 3 drivers: ~7-10 seconds (includes Prisma subprocess)
-```
-
-**Speed improvement: 90x faster** 🚀
+**Speed improvement: ~60-90x faster**
 
 ---
 
