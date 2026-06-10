@@ -1,7 +1,7 @@
 {
     "name": "@reldens/storage",
     "scope": "@reldens",
-    "version": "0.99.0",
+    "version": "0.100.0",
     "description": "Reldens - Storage",
     "author": "Damian A. Pastorini",
     "license": "MIT",
@@ -51,16 +51,16 @@
         "test:driver": "node tests/run-tests.js --driver="
     },
     "dependencies": {
-        "@mikro-orm/core": "7.1.1",
-        "@mikro-orm/mongodb": "7.1.1",
-        "@mikro-orm/mysql": "7.1.1",
+        "@mikro-orm/core": "7.1.4",
+        "@mikro-orm/mongodb": "7.1.4",
+        "@mikro-orm/mysql": "7.1.4",
         "@prisma/adapter-mariadb": "7.8.0",
         "@prisma/client": "7.8.0",
         "@reldens/server-utils": "^0.52.0",
         "@reldens/utils": "^0.56.0",
         "knex": "3.2.10",
         "mysql": "2.18.1",
-        "mysql2": "3.22.4",
+        "mysql2": "3.22.5",
         "objection": "3.1.5",
         "prisma": "7.8.0"
     }
