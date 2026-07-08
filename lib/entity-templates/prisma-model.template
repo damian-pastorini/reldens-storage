@@ -16,7 +16,7 @@ class {{modelClassName}}
     {
         return '{{tableName}}';
     }
-    {{modelRelations}}
+{{idColumn}}{{modelRelations}}
 }
 
 module.exports.{{modelClassName}} = {{modelClassName}};
