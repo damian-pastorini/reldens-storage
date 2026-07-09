@@ -387,7 +387,7 @@ class TestHelpers
             let { PrismaMariaDb } = require('@prisma/adapter-mariadb');
             let adapterConfig = config
                 ? { host: config.host, port: config.port, user: config.user, password: config.password, database: config.database }
-                : process.env.DATABASE_URL;
+                : process.env.RELDENS_DB_URL;
             let client = new PrismaClient({ adapter: new PrismaMariaDb(adapterConfig) });
             await client.$connect();
             return client;

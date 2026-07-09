@@ -150,7 +150,7 @@ npx reldens-storage-prisma --host=<host> --database=<db> --user=<user> --passwor
   - **Type caster isolation**: PrismaTypeCaster never requires `@prisma/client` directly, receives `prismaDbNull` as prop
 - **Prisma v7 breaking changes applied:**
   - Requires `@prisma/adapter-mariadb` for MySQL connections (WASM engine mandates a driver adapter)
-  - `datasource` block in `schema.prisma` no longer accepts `url` - connection URL is provided via `prisma.config.js` generated at project root using `{ datasource: { url: process.env.DATABASE_URL } }`
+  - `datasource` block in `schema.prisma` no longer accepts `url` - connection URL is provided via `prisma.config.js` generated at project root using `process.loadEnvFile('.env')` + `{ datasource: { url: process.env.RELDENS_DB_URL } }`
   - `PrismaClient` constructor no longer accepts `datasources` or `datasourceUrl` - use `adapter: new PrismaMariaDb(connectionString)` instead
   - `provider = "prisma-client-js"` is kept (deprecated but functional); switching to `prisma-client` would require additional adapter changes
   - `_runtimeDataModel` in Prisma 7 is pruned: fields only contain `{ name, kind, type, relationName, dbName }` - `isId`, `isRequired`, `hasDefaultValue` are stripped. ID field detection falls back to `field.name === 'id' && field.kind === 'scalar'`
