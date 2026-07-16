@@ -15,6 +15,7 @@ const RawQueriesTest = require('./integration/test-raw-queries');
 const EntityManagerTest = require('./unit/test-entity-manager');
 const TypeMapperTest = require('./unit/test-type-mapper');
 const DriversUnitTest = require('./unit/test-drivers');
+const EntitiesGenerationTest = require('./unit/test-entities-generation');
 
 if(!process.env.RELDENS_TEST_DB_HOST){
     let envPath = FileHandler.joinPaths(__dirname, '.env.test');
@@ -187,6 +188,11 @@ class RunTests
         this.allCounts.total += driversUnitResult.total;
         this.allCounts.passed += driversUnitResult.passed;
         this.allCounts.failed += driversUnitResult.failed;
+        let entitiesGenerationTest = new EntitiesGenerationTest();
+        let entitiesGenerationResult = await entitiesGenerationTest.run();
+        this.allCounts.total += entitiesGenerationResult.total;
+        this.allCounts.passed += entitiesGenerationResult.passed;
+        this.allCounts.failed += entitiesGenerationResult.failed;
     }
 
     async runPreFlightChecks(config)
