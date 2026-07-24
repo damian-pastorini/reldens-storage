@@ -44,7 +44,7 @@ class TestHelpers
                 rawEntities: rawEntities
             };
             if('prisma' === driverName){
-                let prismaClient = await this.loadPrismaClient(process.cwd());
+                let prismaClient = await this.loadPrismaClient(process.cwd(), config);
                 if(!prismaClient){
                     throw new Error('Failed to load Prisma client');
                 }
@@ -278,15 +278,15 @@ class TestHelpers
     static verifyAllPackages()
     {
         let required = [
-            {name: '@mikro-orm/core', version: '6.6.6'},
-            {name: "@mikro-orm/mongodb", version: "6.6.6"},
-            {name: '@mikro-orm/mysql', version: '6.6.6'},
-            {name: '@prisma/client', version: '6.19.2'},
-            {name: 'knex', version: '3.1.0'},
+            {name: '@mikro-orm/core', version: '7.1.5'},
+            {name: "@mikro-orm/mongodb", version: "7.1.5"},
+            {name: '@mikro-orm/mysql', version: '7.1.5'},
+            {name: '@prisma/client', version: '7.8.0'},
+            {name: 'knex', version: '3.3.0'},
             {name: 'mysql', version: '2.18.1'},
-            {name: 'mysql2', version: '3.16.3'},
+            {name: 'mysql2', version: '3.22.5'},
             {name: 'objection', version: '3.1.5'},
-            {name: 'prisma', version: '6.19.2'}
+            {name: 'prisma', version: '7.8.0'}
         ];
         let allVerified = true;
         for(let pkg of required){
@@ -371,7 +371,7 @@ class TestHelpers
         return subprocessSuccess;
     }
 
-    static async loadPrismaClient(projectRoot)
+    static async loadPrismaClient(projectRoot, config)
     {
         try {
             let clientPath = FileHandler.joinPaths(projectRoot, 'prisma', 'client');
@@ -384,7 +384,11 @@ class TestHelpers
                 Logger.critical('PrismaClient not found in module.');
                 return false;
             }
-            let client = new PrismaClient();
+            let { PrismaMariaDb } = require('@prisma/adapter-mariadb');
+            let adapterConfig = config
+                ? { host: config.host, port: config.port, user: config.user, password: config.password, database: config.database }
+                : process.env.RELDENS_DB_URL;
+            let client = new PrismaClient({ adapter: new PrismaMariaDb(adapterConfig) });
             await client.$connect();
             return client;
         } catch(error) {
@@ -399,6 +403,11 @@ class TestHelpers
         if(FileHandler.exists(prismaPath)){
             Logger.info('Cleaning up Prisma folder: '+prismaPath);
             FileHandler.remove(prismaPath);
+        }
+        let prismaConfigPath = FileHandler.joinPaths(process.cwd(), 'prisma.config.js');
+        if(FileHandler.exists(prismaConfigPath)){
+            Logger.info('Cleaning up Prisma config file: '+prismaConfigPath);
+            FileHandler.remove(prismaConfigPath);
         }
         let entitiesPath = FileHandler.joinPaths(process.cwd(), 'generated-entities');
         if(FileHandler.exists(entitiesPath)){
@@ -437,7 +446,7 @@ class TestHelpers
             Logger.critical('Prisma schema not found at: '+schemaPath);
             return false;
         }
-        let cmd = 'npx prisma generate --schema='+schemaPath;
+        let cmd = 'npx prisma generate';
         Logger.info('Generating Prisma client...');
         try {
             let { stdout, stderr } = await execAsync(cmd);
@@ -605,7 +614,10 @@ class TestHelpers
             let expectedFiles = FileHandler.getFilesInFolder(expectedPath, ['.js']);
             let generatedFiles = FileHandler.getFilesInFolder(generatedPath, ['.js']);
             if(expectedFiles.length !== generatedFiles.length){
-                throw new Error('File count mismatch in '+relativePath+': expected '+expectedFiles.length+', got '+generatedFiles.length);
+                throw new Error(
+                    'File count mismatch in '+relativePath+':'
+                    +' expected '+expectedFiles.length+', got '+generatedFiles.length
+                );
             }
             for(let filename of expectedFiles){
                 let expectedContent = FileHandler.readFile(FileHandler.joinPaths(expectedPath, filename));
@@ -678,7 +690,7 @@ class TestHelpers
                     throw new Error('Failed to generate Prisma client');
                 }
                 await dataServer.disconnect();
-                delete require.cache[require.resolve('@prisma/client')];
+                delete require.cache[require.resolve(FileHandler.joinPaths(process.cwd(), 'prisma', 'client'))];
                 await dataServer.connect();
             }
         }

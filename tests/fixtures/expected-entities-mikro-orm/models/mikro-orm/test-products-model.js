@@ -54,12 +54,12 @@ const schema = new EntitySchema({
         updated_at: { type: 'Date', nullable: true },
         related_test_categories: {
             kind: 'm:1',
-            entity: 'TestCategoriesModel',
-            joinColumn: 'category_id'
+            entity: () => require('./test-categories-model').TestCategoriesModel,
+            joinColumns: ['category_id']
         },
         related_test_reviews: {
             kind: '1:m',
-            entity: 'TestReviewsModel',
+            entity: () => require('./test-reviews-model').TestReviewsModel,
             mappedBy: 'related_test_products'
         }
     },

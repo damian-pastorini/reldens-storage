@@ -33,6 +33,7 @@ class TestProductsEntity extends EntityProperties
             },
             sku: {
                 isRequired: true,
+                isUnique: true,
                 dbType: 'varchar'
             },
             description: {

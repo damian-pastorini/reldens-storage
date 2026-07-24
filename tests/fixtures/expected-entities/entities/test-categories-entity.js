@@ -26,6 +26,7 @@ class TestCategoriesEntity extends EntityProperties
             },
             slug: {
                 isRequired: true,
+                isUnique: true,
                 dbType: 'varchar'
             },
             description: {

@@ -8,7 +8,6 @@ const { FileHandler } = require('@reldens/server-utils');
 const { Logger, sc } = require('@reldens/utils');
 const { exec } = require('child_process');
 const { promisify } = require('util');
-const execAsync = promisify(exec);
 
 class PrismaTestSubprocessWorker
 {
@@ -25,19 +24,16 @@ class PrismaTestSubprocessWorker
                 await this.processIncomingMessage(message);
             } catch(error) {
                 Logger.error('PrismaTestSubprocessWorker error: '+error.message);
-                this.sendErrorResponse(error.message);
-                setTimeout(() => process.exit(1), 100);
+                this.sendErrorResponse(error.message, () => process.exit(1));
             }
         });
         process.on('uncaughtException', (error) => {
             Logger.error('PrismaTestSubprocessWorker uncaught exception: '+error.message);
-            this.sendErrorResponse(error.message);
-            setTimeout(() => process.exit(1), 100);
+            this.sendErrorResponse(error.message, () => process.exit(1));
         });
         process.on('unhandledRejection', (error) => {
             Logger.error('PrismaTestSubprocessWorker unhandled rejection: '+error.message);
-            this.sendErrorResponse(error.message);
-            setTimeout(() => process.exit(1), 100);
+            this.sendErrorResponse(error.message, () => process.exit(1));
         });
     }
 
@@ -94,10 +90,17 @@ class PrismaTestSubprocessWorker
 
     async generateMinimalPrismaClient(projectRoot, config)
     {
+        let execAsync = promisify(exec);
         let prismaPath = FileHandler.joinPaths(projectRoot, 'prisma');
         let schemaPath = FileHandler.joinPaths(prismaPath, 'schema.prisma');
         FileHandler.createFolder(prismaPath);
-        let dbUrl = 'mysql://'+config.user+':'+config.password+'@'+config.host+':'+config.port+'/'+config.database;
+        FileHandler.writeFile(
+            FileHandler.joinPaths(projectRoot, 'prisma.config.js'),
+            'module.exports = { datasource: { url: \'mysql://'
+            +config.user+':'+config.password
+            +'@'+config.host+':'+config.port
+            +'/'+config.database+'\' }  };\n'
+        );
         let schemaContent = 'generator client {\n'
             + '  provider = "prisma-client-js"\n'
             + '  output = "./client"\n'
@@ -105,32 +108,30 @@ class PrismaTestSubprocessWorker
             + '\n'
             + 'datasource db {\n'
             + '  provider = "mysql"\n'
-            + '  url = "'+dbUrl+'"\n'
             + '}';
         FileHandler.writeFile(schemaPath, schemaContent);
         Logger.info('Subprocess: Running prisma db pull to introspect database...');
         try {
-            let { stdout: pullStdout, stderr: pullStderr } = await execAsync('npx prisma db pull', {cwd: projectRoot});
-            if(pullStderr && !pullStderr.includes('Introspected')){
-                Logger.warning('Subprocess: Prisma db pull stderr: '+pullStderr);
-            }
+            await execAsync('npx prisma db pull', {cwd: projectRoot});
             Logger.info('Subprocess: Database introspection completed');
         } catch(error) {
-            Logger.critical('Subprocess: Prisma db pull failed: '+error.message);
+            Logger.critical('Subprocess: Prisma db pull failed:', error.message, error.stdout, error.stderr);
             return false;
         }
         Logger.info('Subprocess: Running prisma generate...');
         try {
-            let { stdout, stderr } = await execAsync('npx prisma generate', {cwd: projectRoot});
-            if(stderr && !stderr.includes('Generated Prisma Client')){
-                Logger.warning('Subprocess: Prisma generate stderr: '+stderr);
-            }
+            await execAsync('npx prisma generate', {cwd: projectRoot});
             Logger.info('Subprocess: Prisma client generated successfully');
             let clientPath = FileHandler.joinPaths(projectRoot, 'prisma', 'client');
             let { PrismaClient } = require(clientPath);
-            return new PrismaClient();
+            let { PrismaMariaDb } = require('@prisma/adapter-mariadb');
+            return new PrismaClient({
+                adapter: new PrismaMariaDb(
+                    'mysql://'+config.user+':'+config.password+'@'+config.host+':'+config.port+'/'+config.database
+                )
+            });
         } catch(error) {
-            Logger.critical('Subprocess: Prisma generate failed: '+error.message);
+            Logger.critical('Subprocess: Prisma generate failed:', error.message, error.stdout, error.stderr);
             return false;
         }
     }
@@ -140,9 +141,9 @@ class PrismaTestSubprocessWorker
         process.send({success: true, message: message});
     }
 
-    sendErrorResponse(errorMessage)
+    sendErrorResponse(errorMessage, callback)
     {
-        process.send({success: false, error: errorMessage});
+        process.send({success: false, error: errorMessage}, callback);
     }
 
 }
