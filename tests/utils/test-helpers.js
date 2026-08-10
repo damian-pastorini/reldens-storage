@@ -278,15 +278,16 @@ class TestHelpers
     static verifyAllPackages()
     {
         let required = [
-            {name: '@mikro-orm/core', version: '7.1.5'},
-            {name: "@mikro-orm/mongodb", version: "7.1.5"},
-            {name: '@mikro-orm/mysql', version: '7.1.5'},
-            {name: '@prisma/client', version: '7.8.0'},
+            {name: '@mikro-orm/core', version: '7.1.11'},
+            {name: '@mikro-orm/mongodb', version: '7.1.11'},
+            {name: '@mikro-orm/mysql', version: '7.1.11'},
+            {name: '@prisma/client', version: '7.9.1'},
+            {name: '@prisma/adapter-mariadb', version: '7.9.1'},
             {name: 'knex', version: '3.3.0'},
             {name: 'mysql', version: '2.18.1'},
-            {name: 'mysql2', version: '3.22.5'},
+            {name: 'mysql2', version: '3.23.3'},
             {name: 'objection', version: '3.1.5'},
-            {name: 'prisma', version: '7.8.0'}
+            {name: 'prisma', version: '7.9.1'}
         ];
         let allVerified = true;
         for(let pkg of required){
