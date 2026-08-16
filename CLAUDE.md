@@ -284,6 +284,26 @@ All generated entity relations follow the `related_*` prefix pattern:
 
 This pattern is consistent across all ORM drivers and is defined in `entities-config.js`.
 
+## Reference Properties Delete Rule
+
+Every generated `type: 'reference'` property also carries the foreign key referential action as
+`onDelete: '<rule>'`, so consumers can tell what a parent delete does to the child rows without querying the
+schema themselves.
+
+- `MysqlTablesProvider` joins `information_schema.REFERENTIAL_CONSTRAINTS` on the FK constraint name and stores
+  the raw `DELETE_RULE` as `column.referencedDeleteRule`.
+- `BaseGenerator.mapDeleteRule()` normalizes it to camel case, matching the Prisma vocabulary: `CASCADE` becomes
+  `cascade`, `SET NULL` becomes `setNull`, `NO ACTION` becomes `noAction`, `SET DEFAULT` becomes `setDefault`,
+  `RESTRICT` stays `restrict`.
+- `BaseGenerator.addReferenceDeleteRule()` pushes the attribute, called from
+  `EntitiesGeneration.addTypeAttribute()` right after the `alias`. Only the entities are affected, the ORM model
+  generation does not emit it.
+- The property is omitted when there is no rule to report, so an entity generated before this existed simply has
+  no `onDelete` and consumers must treat a missing value as unknown rather than assuming a default.
+
+Regenerating entities is required after changing a foreign key referential action: the rule is read live from
+`information_schema`, not from `prisma/schema.prisma`, and `prisma db pull` alone does not update it.
+
 ## Prisma Driver Validation System
 
 ### ensureRequiredFields() Method
