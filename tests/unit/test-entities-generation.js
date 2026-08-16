@@ -38,7 +38,41 @@ class EntitiesGenerationTest
         await this.testAddUniqueAttribute();
         await this.testGetPropertyAttributesUnique();
         await this.testGeneratePropertiesConfigUnique();
+        await this.testAddReferenceDeleteRule();
         return this.runner.getResults();
+    }
+
+    async testAddReferenceDeleteRule()
+    {
+        this.runner.group('addReferenceDeleteRule');
+        let generation = new EntitiesGeneration({});
+        await this.runner.test('should map a CASCADE rule', async () => {
+            let props = [];
+            generation.addReferenceDeleteRule(props, this.createColumn({referencedDeleteRule: 'CASCADE'}));
+            assert.deepStrictEqual(props, ['onDelete: \'cascade\'']);
+        });
+        await this.runner.test('should map a multi word rule to camel case', async () => {
+            let props = [];
+            generation.addReferenceDeleteRule(props, this.createColumn({referencedDeleteRule: 'SET NULL'}));
+            assert.deepStrictEqual(props, ['onDelete: \'setNull\'']);
+            let noActionProps = [];
+            generation.addReferenceDeleteRule(noActionProps, this.createColumn({referencedDeleteRule: 'NO ACTION'}));
+            assert.deepStrictEqual(noActionProps, ['onDelete: \'noAction\'']);
+        });
+        await this.runner.test('should push nothing when the column has no delete rule', async () => {
+            let props = [];
+            generation.addReferenceDeleteRule(props, this.createColumn({}));
+            assert.deepStrictEqual(props, []);
+        });
+        await this.runner.test('should include the delete rule on a reference property', async () => {
+            let column = this.createColumn({
+                type: 'int',
+                referencedTable: 'test_categories',
+                referencedDeleteRule: 'SET NULL'
+            });
+            let props = generation.getPropertyAttributes(column, 'category_id', {test_categories: 1});
+            assert.ok(-1 !== props.indexOf('onDelete: \'setNull\''));
+        });
     }
 
     async testAddUniqueAttribute()
