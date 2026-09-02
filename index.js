@@ -20,6 +20,7 @@ const { PrismaDriver } = require('./lib/prisma/prisma-driver');
 const { PrismaDataServer } = require('./lib/prisma/prisma-data-server');
 const { PrismaSchemaGenerator } = require('./lib/prisma/prisma-schema-generator');
 const { PrismaClientLoader } = require('./lib/prisma/prisma-client-loader');
+const { PrismaModulesValidator } = require('./lib/prisma/prisma-modules-validator');
 const { RELATION_PREFIX } = require('./lib/relation-key');
 
 module.exports = {
@@ -49,6 +50,7 @@ module.exports = {
     PrismaDriver,
     PrismaSchemaGenerator,
     PrismaClientLoader,
+    PrismaModulesValidator,
     // entities:
     EntitiesGenerator,
     EntityProperties,

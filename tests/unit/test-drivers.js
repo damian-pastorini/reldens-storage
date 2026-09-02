@@ -6,6 +6,7 @@
  */
 
 const { TestRunner, assert } = require('../utils/test-runner');
+const { TestHelpers } = require('../utils/test-helpers');
 const { ObjectionJsDriver } = require('../../lib/objection-js/objection-js-driver');
 const { MikroOrmDriver } = require('../../lib/mikro-orm/mikro-orm-driver');
 const { PrismaDriver } = require('../../lib/prisma/prisma-driver');
@@ -18,9 +19,11 @@ class DriversUnitTest
         this.runner = new TestRunner();
         this.DRIVERS = [
             {name: 'objection-js', class: ObjectionJsDriver},
-            {name: 'mikro-orm', class: MikroOrmDriver},
-            {name: 'prisma', class: PrismaDriver}
+            {name: 'mikro-orm', class: MikroOrmDriver}
         ];
+        if(TestHelpers.isPrismaEnabled()){
+            this.DRIVERS.push({name: 'prisma', class: PrismaDriver});
+        }
         this.SHARED_PUBLIC_METHODS = [
             'databaseName',
             'id',

@@ -8,6 +8,7 @@
 
 const { EntitiesGenerator } = require('../lib/entities-generator');
 const { PrismaClientLoader } = require('../lib/prisma/prisma-client-loader');
+const { FileHandler } = require('@reldens/server-utils');
 const { Logger, sc } = require('@reldens/utils');
 
 class StorageEntitiesGenerator
@@ -21,6 +22,8 @@ class StorageEntitiesGenerator
         this.projectPath = process.cwd();
         this.isOverride = false;
         this.prismaClientPath = '';
+        this.prismaAdapter = '@prisma/adapter-mariadb';
+        this.prismaAdapterClass = 'PrismaMariaDb';
         this.parseArguments();
     }
 
@@ -47,6 +50,14 @@ class StorageEntitiesGenerator
             }
             if('prismaClientPath' === key){
                 this.prismaClientPath = value;
+                continue;
+            }
+            if('prismaAdapter' === key){
+                this.prismaAdapter = value;
+                continue;
+            }
+            if('prismaAdapterClass' === key){
+                this.prismaAdapterClass = value;
                 continue;
             }
             if('pass' === key){
@@ -102,6 +113,8 @@ class StorageEntitiesGenerator
                 +' --driver=[driver-map-key]'
                 +' --client=[db-client]'
                 +' --prismaClientPath=[path-to-prisma-client]'
+                +' --prismaAdapter=[prisma-adapter-package-or-path]'
+                +' --prismaAdapterClass=[prisma-adapter-export-name]'
                 +' --path=[project-path] --override',
                 'Optional flags:',
                 '  --override    Regenerate all files even if they exist'
@@ -111,13 +124,34 @@ class StorageEntitiesGenerator
         return true;
     }
 
-    loadPrismaClient(connectionData)
+    loadPrismaModules(connectionData)
     {
-        let loadedClient = PrismaClientLoader.load(this.projectPath, this.prismaClientPath, connectionData);
-        if(!loadedClient){
+        let adapterPath = FileHandler.joinPaths(this.projectPath, 'node_modules', this.prismaAdapter);
+        if(!FileHandler.exists(adapterPath)){
+            adapterPath = this.prismaAdapter;
+        }
+        if(!FileHandler.exists(adapterPath)){
+            Logger.critical(
+                'Prisma adapter "'+this.prismaAdapter+'" not found in the project.'
+                +' Run: npm install prisma @prisma/client '+this.prismaAdapter
+            );
+            return null;
+        }
+        let adapterModule = require(adapterPath);
+        if(!sc.isFunction(adapterModule[this.prismaAdapterClass])){
+            Logger.critical('Prisma adapter class "'+this.prismaAdapterClass+'" not exported by: '+adapterPath);
+            return null;
+        }
+        let loadedModules = PrismaClientLoader.load(
+            this.projectPath,
+            this.prismaClientPath,
+            connectionData,
+            {PrismaAdapter: adapterModule[this.prismaAdapterClass]}
+        );
+        if(!loadedModules){
             Logger.info('Please run "npx prisma generate" first or provide --prismaClientPath argument.');
         }
-        return loadedClient;
+        return loadedModules;
     }
 
     async run()
@@ -135,11 +169,11 @@ class StorageEntitiesGenerator
             isOverride: this.isOverride
         };
         if('prisma' === connectionData.driver){
-            let prismaClient = this.loadPrismaClient(connectionData);
-            if(!prismaClient){
+            let prismaModules = this.loadPrismaModules(connectionData);
+            if(!prismaModules){
                 return false;
             }
-            generatorProps.prismaClient = prismaClient;
+            generatorProps.prismaModules = prismaModules;
         }
         let generator = new EntitiesGenerator(generatorProps);
         let success = await generator.generate();

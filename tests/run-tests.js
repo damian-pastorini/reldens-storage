@@ -20,7 +20,7 @@ const EntitiesGenerationTest = require('./unit/test-entities-generation');
 if(!process.env.RELDENS_TEST_DB_HOST){
     let envPath = FileHandler.joinPaths(__dirname, '.env.test');
     if(FileHandler.exists(envPath)){
-        require('dotenv').config({path: envPath});
+        process.loadEnvFile(envPath);
     }
 }
 
@@ -117,7 +117,7 @@ class RunTests
 
     async runIntegrationTests()
     {
-        let driverNames = ['objection-js', 'mikro-orm', 'prisma'];
+        let driverNames = TestHelpers.activeDriverNames();
         if(this.driver){
             driverNames = [this.driver];
         }

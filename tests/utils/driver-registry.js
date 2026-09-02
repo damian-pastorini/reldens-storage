@@ -23,7 +23,7 @@ class DriverRegistry
         };
         this.schemaPath = FileHandler.joinPaths(__dirname, '..', 'fixtures', 'sql', 'test-schema.sql');
         this.repoNames = ['testCategories', 'testProducts', 'testReviews'];
-        this.driverNames = ['objection-js', 'mikro-orm', 'prisma'];
+        this.driverNames = TestHelpers.activeDriverNames();
         this.skipGeneration = false;
     }
 

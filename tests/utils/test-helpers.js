@@ -6,8 +6,10 @@
 
 const { FileHandler } = require('@reldens/server-utils');
 const { Logger, sc } = require('@reldens/utils');
-const { exec } = require('child_process');
+const { exec, execSync } = require('child_process');
 const { promisify } = require('util');
+const { delimiter } = require('path');
+const NodeModule = require('module');
 const execAsync = promisify(exec);
 
 class TestHelpers
@@ -44,11 +46,11 @@ class TestHelpers
                 rawEntities: rawEntities
             };
             if('prisma' === driverName){
-                let prismaClient = await this.loadPrismaClient(process.cwd(), config);
-                if(!prismaClient){
-                    throw new Error('Failed to load Prisma client');
+                let prismaModules = await this.loadPrismaModules(process.cwd(), config);
+                if(!prismaModules){
+                    throw new Error('Failed to load Prisma modules');
                 }
-                serverConfig.prismaClient = prismaClient;
+                serverConfig.prismaModules = prismaModules;
             }
             let DataServerClass = this.getDataServerClass(driverName);
             let dataServer = new DataServerClass(serverConfig);
@@ -253,7 +255,7 @@ class TestHelpers
         return true;
     }
 
-    static verifyPackageInstallation(packageName, version)
+    static verifyPackageInstallation(packageName, version, isOptional)
     {
         let packagePath = FileHandler.joinPaths(
             process.cwd(),
@@ -261,7 +263,18 @@ class TestHelpers
             packageName,
             'package.json'
         );
+        if(!FileHandler.exists(packagePath) && isOptional && process.env.RELDENS_TEST_NPM_GLOBAL_ROOT){
+            packagePath = FileHandler.joinPaths(
+                process.env.RELDENS_TEST_NPM_GLOBAL_ROOT,
+                packageName,
+                'package.json'
+            );
+        }
         if(!FileHandler.exists(packagePath)){
+            if(isOptional){
+                Logger.warning('Optional package not installed: '+packageName);
+                return false;
+            }
             Logger.critical('Required package not installed: '+packageName);
             return false;
         }
@@ -278,24 +291,102 @@ class TestHelpers
     static verifyAllPackages()
     {
         let required = [
-            {name: '@mikro-orm/core', version: '7.1.11'},
-            {name: '@mikro-orm/mongodb', version: '7.1.11'},
-            {name: '@mikro-orm/mysql', version: '7.1.11'},
-            {name: '@prisma/client', version: '7.9.1'},
-            {name: '@prisma/adapter-mariadb', version: '7.9.1'},
+            {name: '@mikro-orm/core', version: '7.1.14'},
+            {name: '@mikro-orm/mongodb', version: '7.1.14'},
+            {name: '@mikro-orm/mysql', version: '7.1.14'},
             {name: 'knex', version: '3.3.0'},
             {name: 'mysql', version: '2.18.1'},
-            {name: 'mysql2', version: '3.23.3'},
-            {name: 'objection', version: '3.1.5'},
-            {name: 'prisma', version: '7.9.1'}
+            {name: 'mysql2', version: '3.24.3'},
+            {name: 'objection', version: '3.1.5'}
         ];
+        if(this.isPrismaFlagEnabled()){
+            required.push({name: 'prisma', version: '7.9.1', optional: true});
+            required.push({name: '@prisma/client', version: '7.9.1', optional: true});
+            required.push({name: '@prisma/adapter-mariadb', version: '7.9.1', optional: true});
+        }
         let allVerified = true;
         for(let pkg of required){
-            if(!this.verifyPackageInstallation(pkg.name, pkg.version)){
+            let isOptional = sc.get(pkg, 'optional', false);
+            if(!this.verifyPackageInstallation(pkg.name, pkg.version, isOptional) && !isOptional){
                 allVerified = false;
             }
         }
         return allVerified;
+    }
+
+    static isPrismaAvailable()
+    {
+        let resolvableEntries = {
+            'prisma': 'prisma/package.json',
+            '@prisma/client': '@prisma/client',
+            '@prisma/adapter-mariadb': '@prisma/adapter-mariadb'
+        };
+        for(let packageName of Object.keys(resolvableEntries)){
+            if(!this.canResolvePackage(resolvableEntries[packageName])){
+                Logger.warning('Prisma package not installed, Prisma driver tests skipped: '+packageName);
+                return false;
+            }
+        }
+        return true;
+    }
+
+    static canResolvePackage(specifier)
+    {
+        try {
+            require.resolve(specifier);
+            return true;
+        } catch(error) {
+            this.registerNpmGlobalPaths();
+        }
+        try {
+            require.resolve(specifier);
+            return true;
+        } catch(error) {
+            return false;
+        }
+    }
+
+    static registerNpmGlobalPaths()
+    {
+        if(process.env.RELDENS_TEST_NPM_GLOBAL_ROOT){
+            return process.env.RELDENS_TEST_NPM_GLOBAL_ROOT;
+        }
+        let globalRoot = '';
+        try {
+            globalRoot = execSync('npm root -g', {encoding: 'utf8'}).trim();
+        } catch(error) {
+            Logger.warning('Could not resolve the npm global root: '+error.message);
+            return '';
+        }
+        let extraPaths = [globalRoot, FileHandler.joinPaths(globalRoot, '@prisma', 'client', 'node_modules')];
+        let currentPaths = process.env.NODE_PATH ? process.env.NODE_PATH.split(delimiter) : [];
+        process.env.NODE_PATH = [...currentPaths, ...extraPaths].join(delimiter);
+        NodeModule._initPaths();
+        process.env.RELDENS_TEST_NPM_GLOBAL_ROOT = globalRoot;
+        Logger.info('Registered npm global root for Prisma packages: '+globalRoot);
+        return globalRoot;
+    }
+
+    static isPrismaFlagEnabled()
+    {
+        return '1' === String(process.env.RELDENS_TEST_PRISMA_ENABLED);
+    }
+
+    static isPrismaEnabled()
+    {
+        if(!this.isPrismaFlagEnabled()){
+            return false;
+        }
+        return this.isPrismaAvailable();
+    }
+
+    static activeDriverNames()
+    {
+        let driverNames = ['objection-js', 'mikro-orm'];
+        if(this.isPrismaEnabled()){
+            driverNames.push('prisma');
+        }
+        return driverNames;
     }
 
     static async prismaClientExists()
@@ -372,7 +463,7 @@ class TestHelpers
         return subprocessSuccess;
     }
 
-    static async loadPrismaClient(projectRoot, config)
+    static async loadPrismaModules(projectRoot, config)
     {
         try {
             let clientPath = FileHandler.joinPaths(projectRoot, 'prisma', 'client');
@@ -380,20 +471,25 @@ class TestHelpers
                 Logger.critical('Prisma client path does not exist: '+clientPath);
                 return false;
             }
-            let { PrismaClient } = require(clientPath);
-            if(!PrismaClient){
+            let prismaModule = require(clientPath);
+            if(!prismaModule.PrismaClient){
                 Logger.critical('PrismaClient not found in module.');
                 return false;
             }
-            let { PrismaMariaDb } = require('@prisma/adapter-mariadb');
+            let adapterModule = require('@prisma/adapter-mariadb');
             let adapterConfig = config
                 ? { host: config.host, port: config.port, user: config.user, password: config.password, database: config.database }
                 : process.env.RELDENS_DB_URL;
-            let client = new PrismaClient({ adapter: new PrismaMariaDb(adapterConfig) });
+            let client = new prismaModule.PrismaClient({ adapter: new adapterModule.PrismaMariaDb(adapterConfig) });
             await client.$connect();
-            return client;
+            return {
+                PrismaClient: prismaModule.PrismaClient,
+                Prisma: prismaModule.Prisma,
+                PrismaAdapter: adapterModule.PrismaMariaDb,
+                client
+            };
         } catch(error) {
-            Logger.critical('Failed to load Prisma client: '+error.message);
+            Logger.critical('Failed to load Prisma modules: '+error.message);
             return false;
         }
     }
@@ -562,11 +658,10 @@ class TestHelpers
             server: dataServer
         };
         if('prisma' === driverName){
-            let prismaClient = dataServer.prisma;
-            if(!prismaClient){
+            if(!dataServer.prisma){
                 throw new Error('Prisma client not available on dataServer');
             }
-            generatorProps.prismaClient = prismaClient;
+            generatorProps.prismaModules = dataServer.prismaModules;
         }
         let generator = new EntitiesGenerator(generatorProps);
         let result = await generator.generate();

@@ -137,6 +137,16 @@ npx reldens-storage-prisma --host=<host> --database=<db> --user=<user> --passwor
 - `prisma-type-caster.js`: Type casting and normalization
 - `prisma-relation-resolver.js`: Relation mapping and transformations
 - `prisma-client-loader.js`: Utility for loading Prisma Client instances
+- `prisma-modules-validator.js`: Validates the `prismaModules` object passed by the consumer
+- **Prisma is not a dependency of this package**: no Prisma package is listed in `package.json`, no `lib/` file
+  requires `@prisma/*`. Consumers install `prisma`, `@prisma/client` and `@prisma/adapter-mariadb` themselves and
+  pass everything through one `prismaModules` object: `{PrismaClient, Prisma, PrismaAdapter, adapter, client}`.
+  `PrismaAdapter` is any Prisma driver adapter class (instantiated with the connection string), `adapter` is an
+  already instantiated adapter used as is, the package never forces a specific adapter.
+  `PrismaDataServer.connect()` validates it with `PrismaModulesValidator` (capability checks on the instance:
+  `$connect`, `$disconnect`, `$queryRaw`, `$queryRawUnsafe`, `$executeRawUnsafe`, `$transaction`,
+  `_runtimeDataModel`) and builds the client from `PrismaClient` + `PrismaClientLoader.resolveAdapter()` only
+  when no `client` was passed. `Prisma.DbNull` is read from `prismaModules.Prisma`.
 - Features:
   - Schema-first approach with auto-introspection
   - Type-safe queries with Prisma Client
@@ -470,7 +480,7 @@ The `prepareDataWithRelations()` method (lines 156-199) automatically converts F
 
 **Method:**
 ```javascript
-PrismaClientLoader.load(projectPath, customPath, connectionData)
+PrismaClientLoader.load(projectPath, customPath, connectionData, prismaModules)
 ```
 
 **Parameters:**
@@ -483,27 +493,33 @@ PrismaClientLoader.load(projectPath, customPath, connectionData)
   - `host` (string): Database host
   - `port` (number): Database port
   - `database` (string): Database name
+- `prismaModules` (object): Must contain a `PrismaAdapter` class or an `adapter` instance, required from the
+  consumer project (any Prisma driver adapter)
 
-**Returns:** PrismaClient instance or null on error
+**Returns:** the completed `prismaModules` object (`PrismaClient`, `Prisma`, the adapter, `client`) or null on error
 
 **Behavior:**
 - If `customPath` is provided, uses that path
 - Otherwise, uses a default path: `projectPath/prisma/client`
 - Validates that Prisma Client exists at the path
-- Requires `prismaModule.PrismaClient` export
-- If `connectionData` is null: Creates adapter using `process.env.DATABASE_URL`
-- If `connectionData` is provided: Builds connection string and creates `PrismaMariaDb` adapter
-- Returns initialized PrismaClient instance
-- **Prisma v7**: Uses `@prisma/adapter-mariadb` - `PrismaClient` constructor receives `{ adapter }` instead of `{ datasources }`
+- Requires `prismaModule.PrismaClient` export, copies `PrismaClient` and `Prisma` from it into `prismaModules`
+- If `connectionData` is null: Creates adapter using `process.env.RELDENS_DB_URL`
+- If `connectionData` is provided: Builds connection string and creates the adapter
+- `createWithAdapter(prismaModules, connectionUrl)` validates the object with `PrismaModulesValidator`, sets
+  `prismaModules.client` and returns the object
+- `resolveAdapter(prismaModules, connectionUrl)` returns `prismaModules.adapter` when present, otherwise
+  `new prismaModules.PrismaAdapter(connectionUrl)`; also used by `PrismaDataServer.connect()`
+- **Prisma v7**: `PrismaClient` constructor receives `{ adapter }` instead of `{ datasources }`
 
 **Usage Examples:**
 
 Using the default connection from schema:
 ```javascript
 const { PrismaClientLoader } = require('@reldens/storage');
+const { PrismaMariaDb } = require('@prisma/adapter-mariadb');
 
-const prismaClient = PrismaClientLoader.load(process.cwd(), null, null);
-if(!prismaClient){
+let prismaModules = PrismaClientLoader.load(process.cwd(), null, null, {PrismaAdapter: PrismaMariaDb});
+if(!prismaModules){
     console.error('Failed to load Prisma client');
     process.exit(1);
 }
@@ -512,8 +528,9 @@ if(!prismaClient){
 Using custom connection:
 ```javascript
 const { PrismaClientLoader } = require('@reldens/storage');
+const { PrismaMariaDb } = require('@prisma/adapter-mariadb');
 
-const prismaClient = PrismaClientLoader.load(
+let prismaModules = PrismaClientLoader.load(
     process.cwd(),
     null,
     {
@@ -523,14 +540,26 @@ const prismaClient = PrismaClientLoader.load(
         host: 'localhost',
         port: 3306,
         database: 'mydb'
-    }
+    },
+    {PrismaAdapter: PrismaMariaDb}
 );
 
-if(!prismaClient){
+if(!prismaModules){
     console.error('Failed to load Prisma client');
     process.exit(1);
 }
 ```
+
+**CLI:** `bin/reldens-storage.js` resolves the adapter package from `--prismaAdapter` (default
+`@prisma/adapter-mariadb`, looked up in `[path]/node_modules` or used as an absolute path) and the class from
+`--prismaAdapterClass` (default `PrismaMariaDb`), then passes `{PrismaAdapter}` to the loader and the resulting
+`prismaModules` to `EntitiesGenerator`.
+
+**Tests:** the Prisma driver runs only when `RELDENS_TEST_PRISMA_ENABLED=1` is set (in the shell or in
+`tests/.env.test`) and the three Prisma packages resolve (`TestHelpers.isPrismaEnabled()`). Otherwise Prisma is
+not mentioned in the test output at all. Install them locally without saving:
+`npm install --no-save prisma@7.9.1 @prisma/client@7.9.1 @prisma/adapter-mariadb@7.9.1`. See
+`.claude/prisma-setup.md` for the full install, run and uninstall workflow.
 
 **Used By:**
 - `bin/reldens-storage.js`: CLI entity generator

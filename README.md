@@ -47,6 +47,9 @@ npx reldens-storage generateEntities --user=[dbuser] --pass=[dbpass] --database=
 - `--host=[host]` - Database host (default: localhost)
 - `--port=[port]` - Database port (default: 3306)
 - `--path=[path]` - Project path for output files (default: current directory)
+- `--prismaClientPath=[path]` - Prisma only: path to the generated Prisma client (default: `[path]/prisma/client`)
+- `--prismaAdapter=[package-or-path]` - Prisma only: driver adapter package resolved from `[path]/node_modules`, or an absolute path (default: `@prisma/adapter-mariadb`)
+- `--prismaAdapterClass=[export-name]` - Prisma only: adapter class exported by that package (default: `PrismaMariaDb`)
 - `--override` - Regenerate all files even if they exist
 
 **Smart Generation:**
@@ -141,7 +144,12 @@ const entities = server.generateEntities();
 
 ### Using Prisma
 
-First, generate your Prisma schema:
+Prisma is not installed by this package. Install it in your project first:
+```bash
+npm install prisma @prisma/client @prisma/adapter-mariadb
+```
+
+Then generate your Prisma schema:
 ```bash
 npx reldens-generate-prisma-schema --host=localhost --port=3306 --user=dbuser --password=dbpass --database=dbname
 ```
@@ -160,9 +168,12 @@ Or pass parameters directly:
 npx reldens-generate-prisma-schema --host=your-rds-host.amazonaws.com --port=3306 --user=dbuser --password=dbpass --database=dbname --dbParams="authPlugin=mysql_native_password&sslmode=require"
 ```
 
-Then, use the PrismaDataServer in your code:
+Then, pass your Prisma classes to the PrismaDataServer through the `prismaModules` object. Any Prisma driver
+adapter works, `@prisma/adapter-mariadb` is only the example:
 ```javascript
 const { PrismaDataServer } = require('@reldens/storage');
+const { PrismaClient, Prisma } = require('./prisma/client');
+const { PrismaMariaDb } = require('@prisma/adapter-mariadb');
 
 const server = new PrismaDataServer({
     client: 'mysql',
@@ -173,12 +184,22 @@ const server = new PrismaDataServer({
         host: 'localhost',
         port: 3306
     },
-    rawEntities: yourEntities
+    rawEntities: yourEntities,
+    prismaModules: {PrismaClient, Prisma, PrismaAdapter: PrismaMariaDb}
 });
 
 await server.connect();
 const entities = server.generateEntities();
 ```
+
+The `prismaModules` object:
+- `PrismaClient`: the class exported by your generated client (required unless `client` is passed)
+- `Prisma`: the namespace exported by your generated client, used for `Prisma.DbNull` (required)
+- `PrismaAdapter`: any Prisma driver adapter class, instantiated with the connection string (required unless `adapter` or `client` is passed)
+- `adapter`: an already instantiated Prisma driver adapter, used as is (optional, replaces `PrismaAdapter`)
+- `client`: an already instantiated Prisma client (optional, skips the client construction)
+
+The object is validated on `connect()`, the driver refuses to start when a required class or method is missing.
 
 Note: The PrismaDataServer requires the Prisma schema to be generated first. Make sure to run the `reldens-generate-prisma-schema` command before using PrismaDataServer.
 
@@ -189,9 +210,10 @@ If you need to load a Prisma Client instance in your CLI tools or applications:
 Using the default connection from schema:
 ```javascript
 const { PrismaClientLoader } = require('@reldens/storage');
+const { PrismaMariaDb } = require('@prisma/adapter-mariadb');
 
-const prismaClient = PrismaClientLoader.load(process.cwd(), null, null);
-if(!prismaClient){
+let prismaModules = PrismaClientLoader.load(process.cwd(), null, null, {PrismaAdapter: PrismaMariaDb});
+if(!prismaModules){
     console.error('Failed to load Prisma client');
     process.exit(1);
 }
@@ -200,8 +222,9 @@ if(!prismaClient){
 Using custom connection:
 ```javascript
 const { PrismaClientLoader } = require('@reldens/storage');
+const { PrismaMariaDb } = require('@prisma/adapter-mariadb');
 
-const prismaClient = PrismaClientLoader.load(
+let prismaModules = PrismaClientLoader.load(
     process.cwd(),
     null,
     {
@@ -211,10 +234,11 @@ const prismaClient = PrismaClientLoader.load(
         host: 'localhost',
         port: 3306,
         database: 'mydb'
-    }
+    },
+    {PrismaAdapter: PrismaMariaDb}
 );
 
-if(!prismaClient){
+if(!prismaModules){
     console.error('Failed to load Prisma client');
     process.exit(1);
 }
@@ -224,6 +248,9 @@ Parameters:
 - `projectPath`: Project root directory
 - `customPath`: Optional custom path to a Prisma client (null for default)
 - `connectionData`: Optional database connection configuration object (null to use schema default)
+- `prismaModules`: Object with the `PrismaAdapter` class (or an `adapter` instance)
+
+Returns the completed `prismaModules` object (`PrismaClient`, `Prisma`, the adapter and the instantiated `client`), ready to be passed to `PrismaDataServer`, or null on error.
 
 ## Custom Drivers
 
