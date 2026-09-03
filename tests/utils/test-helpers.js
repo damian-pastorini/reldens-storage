@@ -42,8 +42,9 @@ class TestHelpers
             }
             let serverConfig = {
                 client: driverName === 'objection-js' ? 'mysql2' : 'mysql',
-                config: config,
-                rawEntities: rawEntities
+                config: {...config, multipleStatements: true},
+                rawEntities: rawEntities,
+                multipleStatements: true
             };
             if('prisma' === driverName){
                 let prismaModules = await this.loadPrismaModules(process.cwd(), config);
