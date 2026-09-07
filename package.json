@@ -1,7 +1,7 @@
 {
     "name": "@reldens/storage",
     "scope": "@reldens",
-    "version": "0.115.0",
+    "version": "0.116.0",
     "description": "Reldens - Storage",
     "author": "Damian A. Pastorini",
     "license": "MIT",
@@ -51,9 +51,9 @@
         "test:driver": "node tests/run-tests.js --driver="
     },
     "dependencies": {
-        "@mikro-orm/core": "7.1.15",
-        "@mikro-orm/mongodb": "7.1.15",
-        "@mikro-orm/mysql": "7.1.15",
+        "@mikro-orm/core": "7.2.0",
+        "@mikro-orm/mongodb": "7.2.0",
+        "@mikro-orm/mysql": "7.2.0",
         "@reldens/server-utils": "^0.57.0",
         "@reldens/utils": "^0.58.0",
         "knex": "3.3.0",

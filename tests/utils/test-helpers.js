@@ -292,9 +292,9 @@ class TestHelpers
     static verifyAllPackages()
     {
         let required = [
-            {name: '@mikro-orm/core', version: '7.1.14'},
-            {name: '@mikro-orm/mongodb', version: '7.1.14'},
-            {name: '@mikro-orm/mysql', version: '7.1.14'},
+            {name: '@mikro-orm/core', version: '7.2.0'},
+            {name: '@mikro-orm/mongodb', version: '7.2.0'},
+            {name: '@mikro-orm/mysql', version: '7.2.0'},
             {name: 'knex', version: '3.3.0'},
             {name: 'mysql', version: '2.18.1'},
             {name: 'mysql2', version: '3.24.3'},
