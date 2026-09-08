@@ -56,7 +56,7 @@
         "@mikro-orm/mysql": "7.1.7",
         "@prisma/adapter-mariadb": "7.8.0",
         "@prisma/client": "7.8.0",
-        "@reldens/server-utils": "^0.55.0",
+        "@reldens/server-utils": "^0.57.0",
         "@reldens/utils": "^0.57.0",
         "knex": "3.3.0",
         "mysql": "2.18.1",
