@@ -7,6 +7,7 @@
 module.exports.entitiesTranslations = {
     labels: {
         'test_categories': 'Test Categories',
+        'test_product_details': 'Test Product Details',
         'test_products': 'Test Products',
         'test_reviews': 'Test Reviews'
     },
@@ -18,6 +19,14 @@ module.exports.entitiesTranslations = {
             'description': 'Description',
             'is_active': 'Is Active',
             'display_order': 'Display Order',
+            'created_at': 'Created At',
+            'updated_at': 'Updated At'
+        },
+        'test_product_details': {
+            'id': 'ID',
+            'product_id': 'Product ID',
+            'weight': 'Weight',
+            'dimensions': 'Dimensions',
             'created_at': 'Created At',
             'updated_at': 'Updated At'
         },

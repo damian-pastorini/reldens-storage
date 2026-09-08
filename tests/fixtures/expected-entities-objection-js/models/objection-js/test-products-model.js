@@ -17,6 +17,7 @@ class TestProductsModel extends ObjectionJsRawModel
     static get relationMappings()
     {
         const { TestCategoriesModel } = require('./test-categories-model');
+        const { TestProductDetailsModel } = require('./test-product-details-model');
         const { TestReviewsModel } = require('./test-reviews-model');
         return {
             related_test_categories: {
@@ -25,6 +26,14 @@ class TestProductsModel extends ObjectionJsRawModel
                 join: {
                     from: this.tableName+'.category_id',
                     to: TestCategoriesModel.tableName+'.id'
+                }
+            },
+            related_test_product_details: {
+                relation: this.HasOneRelation,
+                modelClass: TestProductDetailsModel,
+                join: {
+                    from: this.tableName+'.id',
+                    to: TestProductDetailsModel.tableName+'.product_id'
                 }
             },
             related_test_reviews: {

@@ -1,4 +1,5 @@
 DROP TABLE IF EXISTS `test_reviews`;
+DROP TABLE IF EXISTS `test_product_details`;
 DROP TABLE IF EXISTS `test_products`;
 DROP TABLE IF EXISTS `test_categories`;
 
@@ -37,6 +38,18 @@ CREATE TABLE `test_products` (
   KEY `status` (`status`),
   KEY `is_featured` (`is_featured`),
   CONSTRAINT `fk_products_category` FOREIGN KEY (`category_id`) REFERENCES `test_categories` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE `test_product_details` (
+  `id` INT UNSIGNED NOT NULL AUTO_INCREMENT,
+  `product_id` INT UNSIGNED NOT NULL,
+  `weight` DECIMAL(10,2) NULL,
+  `dimensions` VARCHAR(100) NULL,
+  `created_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `product_id` (`product_id`),
+  CONSTRAINT `fk_product_details_product` FOREIGN KEY (`product_id`) REFERENCES `test_products` (`id`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE `test_reviews` (

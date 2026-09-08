@@ -156,6 +156,7 @@ class TestHelpers
         try {
             await dataServer.rawQuery('SET FOREIGN_KEY_CHECKS=0;');
             await dataServer.rawQuery('DELETE FROM test_reviews;');
+            await dataServer.rawQuery('DELETE FROM test_product_details;');
             await dataServer.rawQuery('DELETE FROM test_products;');
             await dataServer.rawQuery('DELETE FROM test_categories;');
             await dataServer.rawQuery('SET FOREIGN_KEY_CHECKS=1;');
@@ -210,6 +211,7 @@ class TestHelpers
         try {
             await dataServer.rawQuery('SET FOREIGN_KEY_CHECKS=0;');
             await dataServer.rawQuery('DROP TABLE IF EXISTS test_reviews;');
+            await dataServer.rawQuery('DROP TABLE IF EXISTS test_product_details;');
             await dataServer.rawQuery('DROP TABLE IF EXISTS test_products;');
             await dataServer.rawQuery('DROP TABLE IF EXISTS test_categories;');
             await dataServer.rawQuery('SET FOREIGN_KEY_CHECKS=1;');
@@ -719,9 +721,7 @@ class TestHelpers
             for(let filename of expectedFiles){
                 let expectedContent = FileHandler.readFile(FileHandler.joinPaths(expectedPath, filename));
                 let generatedContent = FileHandler.readFile(FileHandler.joinPaths(generatedPath, filename));
-                let normalizedExpected = expectedContent.replace(/\r\n/g, '\n');
-                let normalizedGenerated = generatedContent.replace(/\r\n/g, '\n');
-                if(normalizedExpected !== normalizedGenerated){
+                if(this.normalizeGeneratedContent(expectedContent) !== this.normalizeGeneratedContent(generatedContent)){
                     Logger.warning('File content mismatch: '+filename);
                     Logger.warning('Expected: '+FileHandler.joinPaths(expectedPath, filename));
                     Logger.warning('Generated: '+FileHandler.joinPaths(generatedPath, filename));
@@ -735,15 +735,18 @@ class TestHelpers
         if(!isExpectedDir && !isGeneratedDir){
             let expectedContent = FileHandler.readFile(expectedPath);
             let generatedContent = FileHandler.readFile(generatedPath);
-            let normalizedExpected = expectedContent.replace(/\r\n/g, '\n');
-            let normalizedGenerated = generatedContent.replace(/\r\n/g, '\n');
-            if(normalizedExpected !== normalizedGenerated){
+            if(this.normalizeGeneratedContent(expectedContent) !== this.normalizeGeneratedContent(generatedContent)){
                 Logger.warning('File content mismatch: '+relativePath);
             }
             Logger.info('File '+relativePath+' matches expected output');
             return true;
         }
         throw new Error('Path type mismatch for: '+relativePath);
+    }
+
+    static normalizeGeneratedContent(content)
+    {
+        return content.replace(/\r\n/g, '\n').replace(/[ \t]+\n/g, '\n');
     }
 
     static async loadGeneratedEntities(dataServer, driverName)

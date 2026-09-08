@@ -57,6 +57,11 @@ const schema = new EntitySchema({
             entity: () => require('./test-categories-model').TestCategoriesModel,
             joinColumns: ['category_id']
         },
+        related_test_product_details: {
+            kind: '1:1',
+            entity: () => require('./test-product-details-model').TestProductDetailsModel,
+            mappedBy: 'related_test_products'
+        },
         related_test_reviews: {
             kind: '1:m',
             entity: () => require('./test-reviews-model').TestReviewsModel,
