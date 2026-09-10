@@ -27,6 +27,8 @@ module.exports.entitiesTranslations = {
             'product_id': 'Product ID',
             'weight': 'Weight',
             'dimensions': 'Dimensions',
+            'customData': 'CustomData',
+            'useTimeOut': 'UseTimeOut',
             'created_at': 'Created At',
             'updated_at': 'Updated At'
         },

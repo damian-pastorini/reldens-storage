@@ -45,11 +45,17 @@ CREATE TABLE `test_product_details` (
   `product_id` INT UNSIGNED NOT NULL,
   `weight` DECIMAL(10,2) NULL,
   `dimensions` VARCHAR(100) NULL,
+  `customData` TEXT NULL,
+  `useTimeOut` INT NULL,
+  `total_views` BIGINT NULL,
+  `category_id` INT UNSIGNED NULL DEFAULT NULL,
   `created_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
   `updated_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`),
   UNIQUE KEY `product_id` (`product_id`),
-  CONSTRAINT `fk_product_details_product` FOREIGN KEY (`product_id`) REFERENCES `test_products` (`id`) ON DELETE CASCADE
+  KEY `category_id` (`category_id`),
+  CONSTRAINT `fk_product_details_product` FOREIGN KEY (`product_id`) REFERENCES `test_products` (`id`) ON DELETE CASCADE,
+  CONSTRAINT `fk_product_details_category` FOREIGN KEY (`category_id`) REFERENCES `test_categories` (`id`) ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE `test_reviews` (
@@ -62,11 +68,14 @@ CREATE TABLE `test_reviews` (
   `comment` TEXT NULL,
   `is_verified` TINYINT(1) NOT NULL DEFAULT 0,
   `helpful_count` INT NOT NULL DEFAULT 0,
+  `category_slug` VARCHAR(100) NULL,
   `created_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
   `updated_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`),
   KEY `product_id` (`product_id`),
   KEY `rating` (`rating`),
   KEY `is_verified` (`is_verified`),
-  CONSTRAINT `fk_reviews_product` FOREIGN KEY (`product_id`) REFERENCES `test_products` (`id`) ON DELETE CASCADE
+  KEY `category_slug` (`category_slug`),
+  CONSTRAINT `fk_reviews_product` FOREIGN KEY (`product_id`) REFERENCES `test_products` (`id`) ON DELETE CASCADE,
+  CONSTRAINT `fk_reviews_category_slug` FOREIGN KEY (`category_slug`) REFERENCES `test_categories` (`slug`) ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

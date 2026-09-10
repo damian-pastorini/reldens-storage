@@ -9,18 +9,71 @@ It ensures consistent data access methods across different database types and OR
 ## Features
 
 ### ORM Support
-- **Objection JS** (via Knex) - For SQL databases (recommended)
+- **Knex** - SQL query builder, the default driver and the only one bundled with the package
+  - MySQL/MariaDB through mysql2
+  - Same filter grammar as the Objection JS driver
+- **Kysely** - Type safe SQL query builder (optional)
+  - MySQL/MariaDB through mysql2
+  - Injected by the consumer through the `kyselyModules` object
+- **Drizzle** - Modern TypeScript ORM (optional)
+  - MySQL/MariaDB through mysql2
+  - Injected by the consumer through the `drizzleModules` object
+- **Objection JS** (via Knex) - For SQL databases (optional)
   - MySQL, MariaDB, PostgreSQL support
   - Complex relation mappings
-  - Query builder with filtering and sorting
-- **Mikro-ORM** - For MongoDB/NoSQL support
+  - Injected by the consumer through the `objectionModules` object
+- **Mikro-ORM** - For MongoDB/NoSQL support (optional)
   - MongoDB native support
   - Entity metadata decorators
-  - Automatic schema synchronization
-- **Prisma** - Modern database toolkit
+  - Injected by the consumer through the `mikroOrmModules` object
+- **Prisma** - Modern database toolkit (optional)
   - Type-safe queries
   - Schema-first approach
-  - Introspection and migration tools
+  - Injected by the consumer through the `prismaModules` object
+
+### Driver packages
+
+The package only depends on `@reldens/utils`, `@reldens/server-utils`, `knex` and `mysql2`. Every other driver
+expects its packages installed in the consumer project. Install the one you need:
+
+```bash
+# Kysely
+npm install kysely
+
+# Drizzle
+npm install drizzle-orm
+
+# Objection JS
+npm install objection@3.1.5
+
+# Mikro-ORM for MySQL/MariaDB
+npm install @mikro-orm/core@7.2.0 @mikro-orm/mysql@7.2.0
+
+# Mikro-ORM for MongoDB
+npm install @mikro-orm/core@7.2.0 @mikro-orm/mongodb@7.2.0
+
+# Prisma
+npm install prisma @prisma/client @prisma/adapter-mariadb
+```
+
+Each data server accepts the driver classes through its `[driver]Modules` option, validated on `connect()`.
+When the option is missing, the data server resolves the packages from the project `node_modules` through the
+matching `*ModulesLoader` (`KyselyModulesLoader`, `DrizzleModulesLoader`, `ObjectionModulesLoader`,
+`MikroOrmModulesLoader`), all exported by the package.
+
+To try every driver at once without touching `package.json`, for example to run the full test suite:
+
+```bash
+npm install --no-save objection@3.1.5 @mikro-orm/core@7.2.0 @mikro-orm/mysql@7.2.0 @mikro-orm/mongodb@7.2.0 kysely drizzle-orm prisma@7.10.0 @prisma/client@7.10.0 @prisma/adapter-mariadb@7.10.0
+RELDENS_TEST_OBJECTION_ENABLED=1 RELDENS_TEST_MIKRO_ORM_ENABLED=1 RELDENS_TEST_PRISMA_ENABLED=1 RELDENS_TEST_KYSELY_ENABLED=1 RELDENS_TEST_DRIZZLE_ENABLED=1 npm run test
+```
+
+Keep all the packages in that one command: any later `npm install`, with or without `--no-save`, prunes the
+`--no-save` packages from a previous run. Without the flags `npm run test` only exercises the bundled knex driver.
+
+The Knex, Kysely and Drizzle drivers share `QueryBuilderDriver` and load relations with one extra query per
+relation level, using the `relationMappings` data emitted into the generated models. Relation filters become
+`IN (SELECT ...)` sub queries, so counts are never inflated by joins.
 
 ### Entity Management
 - Standardized CRUD operations across all drivers
@@ -35,14 +88,14 @@ It ensures consistent data access methods across different database types and OR
 
 **Generate entity files directly from your database structure:**
 ```bash
-npx reldens-storage generateEntities --user=[dbuser] --pass=[dbpass] --database=[dbname] --driver=[objection-js]
+npx reldens-storage generateEntities --user=[dbuser] --pass=[dbpass] --database=[dbname] --driver=[knex]
 ```
 
 **Entity Generation Options:**
 - `--user=[username]` - Database username (required)
 - `--pass=[password]` - Database password (required)
 - `--database=[name]` - Database name (required)
-- `--driver=[driver]` - ORM driver: objection-js, mikro-orm, or prisma (default: objection-js)
+- `--driver=[driver]` - ORM driver: knex, kysely, drizzle, objection-js, mikro-orm or prisma (default: knex). Only knex ships with the package, every other driver expects its packages installed in the project and passed as `[driver]Modules`, or resolved from the project `node_modules`.
 - `--client=[client]` - Database client: mysql, mysql2, or mongodb (default: mysql2)
 - `--host=[host]` - Database host (default: localhost)
 - `--port=[port]` - Database port (default: 3306)
@@ -103,10 +156,17 @@ RELDENS_DB_PARAMS="authPlugin=mysql_native_password&sslmode=require&sslcert=ca-c
 ## Usage Examples
 
 ### SQL with Objection JS
+
+Objection is not installed by this package, install it in your project first:
+```bash
+npm install objection@3.1.5
+```
+
 ```javascript
 const { ObjectionJsDataServer } = require('@reldens/storage');
+const { Model } = require('objection');
 
-const server = new ObjectionJsDataServer({
+let server = new ObjectionJsDataServer({
     client: 'mysql2',
     config: {
         user: 'reldens',
@@ -114,18 +174,34 @@ const server = new ObjectionJsDataServer({
         database: 'reldens',
         host: 'localhost',
         port: 3306
-    }
+    },
+    rawEntities: yourEntities,
+    objectionModules: {Model}
 });
 
 await server.connect();
-const entities = server.generateEntities();
+let entities = server.generateEntities();
 ```
 
+The `objectionModules` object only needs `Model`, the Objection base model class. The generated Objection models
+read it from the package export `ObjectionJsRawModel`, which resolves `objection` from the project when it is
+installed and is `false` otherwise.
+
 ### MongoDB with Mikro-ORM
+
+Mikro-ORM is not installed by this package, install the core plus the driver for your database:
+```bash
+npm install @mikro-orm/core@7.2.0 @mikro-orm/mongodb@7.2.0
+# or, for MySQL/MariaDB:
+npm install @mikro-orm/core@7.2.0 @mikro-orm/mysql@7.2.0
+```
+
 ```javascript
 const { MikroOrmDataServer } = require('@reldens/storage');
+const { MikroORM, EntityCaseNamingStrategy, Collection } = require('@mikro-orm/core');
+const { MongoDriver } = require('@mikro-orm/mongodb');
 
-const server = new MikroOrmDataServer({
+let server = new MikroOrmDataServer({
     client: 'mongodb',
     config: {
         user: 'reldens',
@@ -135,12 +211,116 @@ const server = new MikroOrmDataServer({
         port: 27017
     },
     connectStringOptions: 'authSource=reldens&readPreference=primary&ssl=false',
+    rawEntities: yourEntities,
+    mikroOrmModules: {MikroORM, EntityCaseNamingStrategy, Collection, MongoDriver}
+});
+
+await server.connect();
+let entities = server.generateEntities();
+```
+
+The `mikroOrmModules` object:
+- `MikroORM`, `EntityCaseNamingStrategy`, `Collection`: from `@mikro-orm/core` (required)
+- `MongoDriver`: from `@mikro-orm/mongodb`, required when `client` is `mongodb`
+- `MySqlDriver`: from `@mikro-orm/mysql`, required for any other client
+
+The generated Mikro-ORM models read `EntitySchema` from the package export `MikroOrmCore`, which resolves
+`@mikro-orm/core` from the project when it is installed and is `false` otherwise.
+
+### SQL with Knex
+
+Knex is already a dependency of this package, nothing extra to install:
+
+```javascript
+const { KnexDataServer } = require('@reldens/storage');
+
+let server = new KnexDataServer({
+    client: 'mysql2',
+    config: {
+        user: 'reldens',
+        password: 'reldens',
+        database: 'reldens',
+        host: 'localhost',
+        port: 3306
+    },
     rawEntities: yourEntities
 });
 
 await server.connect();
-const entities = server.generateEntities();
+let entities = server.generateEntities();
 ```
+
+### Using Kysely
+
+Kysely is not installed by this package, install it in your project first:
+```bash
+npm install kysely
+```
+
+```javascript
+const { KyselyDataServer } = require('@reldens/storage');
+const { Kysely, MysqlDialect, sql } = require('kysely');
+
+let server = new KyselyDataServer({
+    config: {
+        user: 'reldens',
+        password: 'reldens',
+        database: 'reldens',
+        host: 'localhost',
+        port: 3306
+    },
+    rawEntities: yourEntities,
+    kyselyModules: {Kysely, MysqlDialect, sql}
+});
+
+await server.connect();
+let entities = server.generateEntities();
+```
+
+The `kyselyModules` object:
+- `sql`: the Kysely `sql` tag, used for the raw queries (required)
+- `Kysely`: the Kysely class (required unless `db` is passed)
+- `MysqlDialect`: the Kysely MySQL dialect (required unless `db` is passed)
+- `db`: an already instantiated Kysely instance (optional, skips the instance construction)
+
+Kysely is an ESM only package, so Node.js 22.12 or later is required to require it from CommonJS.
+
+### Using Drizzle
+
+Drizzle is not installed by this package, install it in your project first:
+```bash
+npm install drizzle-orm
+```
+
+```javascript
+const { DrizzleDataServer } = require('@reldens/storage');
+const { drizzle } = require('drizzle-orm/mysql2');
+const DrizzleOrm = require('drizzle-orm');
+
+let server = new DrizzleDataServer({
+    config: {
+        user: 'reldens',
+        password: 'reldens',
+        database: 'reldens',
+        host: 'localhost',
+        port: 3306
+    },
+    rawEntities: yourEntities,
+    drizzleModules: {drizzle, orm: DrizzleOrm}
+});
+
+await server.connect();
+let entities = server.generateEntities();
+```
+
+The `drizzleModules` object:
+- `orm`: the `drizzle-orm` namespace, used for the conditions and the `sql` tag (required)
+- `drizzle`: the factory exported by `drizzle-orm/mysql2` (required unless `db` is passed)
+- `db`: an already instantiated Drizzle instance (optional, skips the instance construction)
+
+Both objects are validated on `connect()`, the drivers refuse to start when a required class or method is missing.
+The generated Drizzle models require `drizzle-orm/mysql-core` directly, so the package must be installed in the
+project that loads them.
 
 ### Using Prisma
 
@@ -175,7 +355,7 @@ const { PrismaDataServer } = require('@reldens/storage');
 const { PrismaClient, Prisma } = require('./prisma/client');
 const { PrismaMariaDb } = require('@prisma/adapter-mariadb');
 
-const server = new PrismaDataServer({
+let server = new PrismaDataServer({
     client: 'mysql',
     config: {
         user: 'reldens',
@@ -189,7 +369,7 @@ const server = new PrismaDataServer({
 });
 
 await server.connect();
-const entities = server.generateEntities();
+let entities = server.generateEntities();
 ```
 
 The `prismaModules` object:
@@ -211,10 +391,11 @@ Using the default connection from schema:
 ```javascript
 const { PrismaClientLoader } = require('@reldens/storage');
 const { PrismaMariaDb } = require('@prisma/adapter-mariadb');
+const { Logger } = require('@reldens/utils');
 
 let prismaModules = PrismaClientLoader.load(process.cwd(), null, null, {PrismaAdapter: PrismaMariaDb});
 if(!prismaModules){
-    console.error('Failed to load Prisma client');
+    Logger.error('Failed to load Prisma client');
     process.exit(1);
 }
 ```
@@ -223,6 +404,7 @@ Using custom connection:
 ```javascript
 const { PrismaClientLoader } = require('@reldens/storage');
 const { PrismaMariaDb } = require('@prisma/adapter-mariadb');
+const { Logger } = require('@reldens/utils');
 
 let prismaModules = PrismaClientLoader.load(
     process.cwd(),
@@ -239,7 +421,7 @@ let prismaModules = PrismaClientLoader.load(
 );
 
 if(!prismaModules){
-    console.error('Failed to load Prisma client');
+    Logger.error('Failed to load Prisma client');
     process.exit(1);
 }
 ```
@@ -292,8 +474,8 @@ class CustomDriver extends BaseDriver {
 const { ServerManager } = require('@reldens/server');
 const CustomDataServer = require('./custom-data-server');
 
-const customDriver = new CustomDataServer(options);
-const appServer = new ServerManager(serverConfig, eventsManager, customDriver);
+let customDriver = new CustomDataServer(options);
+let appServer = new ServerManager(serverConfig, eventsManager, customDriver);
 ```
 
 ### Required Methods
@@ -349,11 +531,11 @@ All relations use the `related_*` prefix:
 Example usage:
 ```javascript
 // Load user with related player
-const user = await dataServer.getEntity('users')
+let user = await dataServer.getEntity('users')
     .loadByIdWithRelations(userId, ['related_player']);
 
 // Access nested relations
-const player = await dataServer.getEntity('players')
+let player = await dataServer.getEntity('players')
     .loadByIdWithRelations(playerId, ['related_state', 'related_scenes']);
 ```
 
@@ -376,7 +558,7 @@ const player = await dataServer.getEntity('players')
 
 ### Database Support
 
-- **MySQL/MariaDB**: Via ObjectionJS or Prisma
+- **MySQL/MariaDB**: Via Knex (default), Kysely, Drizzle, ObjectionJS, MikroORM or Prisma
 - **PostgreSQL**: Via Prisma
 - **MongoDB**: Via MikroORM
 

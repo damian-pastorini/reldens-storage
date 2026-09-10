@@ -10,7 +10,10 @@ module.exports.ProductDetailsFixtures = {
         id: 4600,
         product_id: 2600,
         weight: 1.25,
-        dimensions: '10x20x30'
+        dimensions: '10x20x30',
+        customData: '{"origin":"fixture"}',
+        useTimeOut: 45,
+        total_views: 9007199254740991
     },
     product_details_create_nested: {
         weight: 2.5,

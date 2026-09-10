@@ -8,6 +8,11 @@
 
 const { EntitiesGenerator } = require('../lib/entities-generator');
 const { PrismaClientLoader } = require('../lib/prisma/prisma-client-loader');
+const { KyselyModulesLoader } = require('../lib/kysely/kysely-modules-loader');
+const { DrizzleModulesLoader } = require('../lib/drizzle/drizzle-modules-loader');
+const { MikroOrmModulesLoader } = require('../lib/mikro-orm/mikro-orm-modules-loader');
+const { ObjectionModulesLoader } = require('../lib/objection-js/objection-modules-loader');
+const { KnexModulesLoader } = require('../lib/knex/knex-modules-loader');
 const { FileHandler } = require('@reldens/server-utils');
 const { Logger, sc } = require('@reldens/utils');
 
@@ -65,7 +70,7 @@ class StorageEntitiesGenerator
                 continue;
             }
             if('port' === key){
-                this.config[key] = parseInt(value);
+                this.config[key] = Number(value);
                 continue;
             }
             this.config[key] = value;
@@ -75,7 +80,7 @@ class StorageEntitiesGenerator
     getConnectionData()
     {
         let connectionData = {
-            driver: sc.get(this.config, 'driver', 'objection-js'),
+            driver: sc.get(this.config, 'driver', 'knex'),
             client: sc.get(this.config, 'client', 'mysql2'),
             user: sc.get(this.config, 'user', ''),
             password: sc.get(this.config, 'password', ''),
@@ -87,6 +92,12 @@ class StorageEntitiesGenerator
             connectionData.client = 'mysql';
         }
         if('prisma' === connectionData.driver && !this.config.client){
+            connectionData.client = 'mysql';
+        }
+        if('kysely' === connectionData.driver && !this.config.client){
+            connectionData.client = 'mysql';
+        }
+        if('drizzle' === connectionData.driver && !this.config.client){
             connectionData.client = 'mysql';
         }
         return connectionData;
@@ -110,7 +121,7 @@ class StorageEntitiesGenerator
                 +' --pass=[db-password]'
                 +' --host=[db-host]'
                 +' --database=[db-name]'
-                +' --driver=[driver-map-key]'
+                +' --driver=[knex|kysely|drizzle|objection-js|mikro-orm|prisma] (default: knex)'
                 +' --client=[db-client]'
                 +' --prismaClientPath=[path-to-prisma-client]'
                 +' --prismaAdapter=[prisma-adapter-package-or-path]'
@@ -154,6 +165,32 @@ class StorageEntitiesGenerator
         return loadedModules;
     }
 
+    appendDriverModules(generatorProps, connectionData)
+    {
+        if('prisma' === connectionData.driver){
+            generatorProps.prismaModules = this.loadPrismaModules(connectionData);
+            return Boolean(generatorProps.prismaModules);
+        }
+        if('kysely' === connectionData.driver){
+            generatorProps.kyselyModules = KyselyModulesLoader.load(this.projectPath);
+            return Boolean(generatorProps.kyselyModules);
+        }
+        if('drizzle' === connectionData.driver){
+            generatorProps.drizzleModules = DrizzleModulesLoader.load(this.projectPath);
+            return Boolean(generatorProps.drizzleModules);
+        }
+        if('mikro-orm' === connectionData.driver){
+            generatorProps.mikroOrmModules = MikroOrmModulesLoader.load(this.projectPath, connectionData.client);
+            return Boolean(generatorProps.mikroOrmModules);
+        }
+        if('objection-js' === connectionData.driver){
+            generatorProps.objectionModules = ObjectionModulesLoader.load(this.projectPath);
+            return Boolean(generatorProps.objectionModules);
+        }
+        generatorProps.knexModules = KnexModulesLoader.load(this.projectPath);
+        return Boolean(generatorProps.knexModules);
+    }
+
     async run()
     {
         if(!this.validateCommand()){
@@ -168,12 +205,8 @@ class StorageEntitiesGenerator
             projectPath: this.projectPath,
             isOverride: this.isOverride
         };
-        if('prisma' === connectionData.driver){
-            let prismaModules = this.loadPrismaModules(connectionData);
-            if(!prismaModules){
-                return false;
-            }
-            generatorProps.prismaModules = prismaModules;
+        if(!this.appendDriverModules(generatorProps, connectionData)){
+            return false;
         }
         let generator = new EntitiesGenerator(generatorProps);
         let success = await generator.generate();

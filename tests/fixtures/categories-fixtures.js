@@ -154,6 +154,14 @@ module.exports.CategoriesFixtures = {
         display_order: 2,
         slug: 'relations-test-2'
     },
+    category_cross_driver_create: {
+        id: 1700,
+        name: 'Cross Driver Create',
+        description: 'Category created with the same explicit id by every driver',
+        is_active: 1,
+        display_order: 7,
+        slug: 'cross-driver-create'
+    },
     category_create_nested: {
         name: 'Nested Create Category',
         description: 'Category for createWithRelations test',

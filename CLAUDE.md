@@ -19,7 +19,7 @@
 ## Package Overview
 
 **@reldens/storage** is the database abstraction layer for Reldens. It provides:
-- Multi-ORM support (objection-js, mikro-orm, prisma)
+- Multi-ORM support (knex by default, plus kysely, drizzle, objection-js, mikro-orm and prisma as optional drivers)
 - Entity/model generation from database schemas
 - Unified API across different ORM drivers
 - Database connection management
@@ -165,6 +165,58 @@ npx reldens-storage-prisma --host=<host> --database=<db> --user=<user> --passwor
   - `provider = "prisma-client-js"` is kept (deprecated but functional); switching to `prisma-client` would require additional adapter changes
   - `_runtimeDataModel` in Prisma 7 is pruned: fields only contain `{ name, kind, type, relationName, dbName }` - `isId`, `isRequired`, `hasDefaultValue` are stripped. ID field detection falls back to `field.name === 'id' && field.kind === 'scalar'`
   - `prisma.config.js` at project root is generated automatically by `PrismaSchemaGenerator.generateConfigFile()` and cleaned up after tests
+
+**Knex, Kysely and Drizzle Drivers** (`lib/knex/`, `lib/kysely/`, `lib/drizzle/`):
+- All three extend `QueryBuilderDriver` (`lib/query-builder-driver.js`), which implements 26 of the 30
+  `BaseDriver` methods once as compositions of five primitives: `insertRow()`, `selectRows()`, `update()`,
+  `delete()`, `count()`. Each concrete driver implements only those five plus its own filter translation.
+- `RelationsLoader` (`lib/relations-loader.js`) loads relations with one extra query per relation level
+  (`WHERE to_column IN (parent values)`), reading the plain `relationMappings` data
+  (`{relation, tableName, from, to}`) emitted into the generated models. `HasManyRelation` yields an array,
+  `BelongsToOneRelation` and `HasOneRelation` yield one row or `null`. Nested paths (`a.b`) recurse through the
+  related driver's own loader. It also implements `createWithRelations()`, creating BelongsToOne parents before
+  the row and HasOne/HasMany children after it.
+- Relation filters become `IN (SELECT to_column FROM related WHERE ...)` sub queries, so `countWithRelations()`
+  equals `count()` and joins never inflate the counts.
+- `Mysql2ConnectionConfig` (`lib/mysql2-connection-config.js`) holds the mysql2 option whitelist that used to
+  live inside `ObjectionJsDataServer`; the Knex, Kysely and Drizzle data servers all sanitize through it.
+- `ObjectionJsDataServer` now extends `KnexDataServer`; the Knex connection code exists once.
+  `connectionErrorMessage()` is overridden so a failed Objection connection still logs
+  `'Connection failed, Objection JS error.'`.
+- Knex is the only driver package shipped as a dependency and the default driver. Objection, MikroORM, Kysely,
+  Drizzle and Prisma are NOT: the consumer passes `objectionModules` (`{Model}`), `mikroOrmModules`
+  (`{MikroORM, EntityCaseNamingStrategy, Collection, MySqlDriver|MongoDriver}`), `kyselyModules`
+  (`{Kysely, MysqlDialect, sql, db}`), `drizzleModules` (`{drizzle, orm, db}`) or `prismaModules`, each validated
+  on `connect()` by its `*ModulesValidator`. When the object is missing the data server resolves the packages from
+  the project `node_modules` through the matching `*ModulesLoader` (all built on `PackageResolver`).
+- Model generation: `QueryBuilderModelsGeneration` (`lib/query-builder-models-generation.js`) serves `knex` and
+  `kysely`, `DrizzleModelsGeneration` (`lib/drizzle/drizzle-models-generation.js`) extends it and emits the
+  `drizzle-orm/mysql-core` column builders through `TypeMapper.mapDbTypeToDrizzleBuilder()`. Both are registered
+  in `ModelsGeneration.driversGeneration`. Templates: `query-builder-model.template`, `drizzle-model.template`.
+- `parseEnumValues()` moved from `EntitiesGeneration` to `BaseGenerator` so the Drizzle `mysqlEnum` builder can
+  use it.
+- Tests: the `knex` driver runs on every `npm run test`. Every other driver runs only when its flag is `1` and its
+  packages resolve, locally or from the npm global root (`TestHelpers.registerNpmGlobalPaths()` adds
+  `npm root -g` and the project `node_modules` to `NODE_PATH`): `RELDENS_TEST_OBJECTION_ENABLED`,
+  `RELDENS_TEST_MIKRO_ORM_ENABLED`, `RELDENS_TEST_PRISMA_ENABLED`, `RELDENS_TEST_KYSELY_ENABLED`,
+  `RELDENS_TEST_DRIZZLE_ENABLED`. Install every optional driver in one go without touching `package.json`
+  (Prisma must be local, `prisma generate` never resolves `@prisma/client` from the global root):
+
+  ```bash
+  npm install --no-save objection@3.1.5 @mikro-orm/core@7.2.0 @mikro-orm/mysql@7.2.0 @mikro-orm/mongodb@7.2.0 kysely drizzle-orm prisma@7.10.0 @prisma/client@7.10.0 @prisma/adapter-mariadb@7.10.0
+  ```
+
+  Then run all six drivers:
+
+  ```bash
+  RELDENS_TEST_OBJECTION_ENABLED=1 RELDENS_TEST_MIKRO_ORM_ENABLED=1 RELDENS_TEST_PRISMA_ENABLED=1 RELDENS_TEST_KYSELY_ENABLED=1 RELDENS_TEST_DRIZZLE_ENABLED=1 npm run test
+  ```
+
+  Always install them in that single command: every `npm install`, with or without `--no-save`, prunes the
+  `--no-save` packages left by a previous run, so installing them in separate commands removes the earlier
+  ones. The cross driver equivalence suite runs
+  only when two or more drivers are active, and the benchmark table at the end of the run covers the drivers,
+  queries and CRUD suites of every active driver.
 
 ### Generators
 
@@ -454,8 +506,9 @@ The `prepareDataWithRelations()` method (lines 156-199) automatically converts F
 - ENUM changes: entity updates with new available values
 
 ### Driver-Specific Notes
-- **ObjectionJS**: Recommended driver, mature and stable
-- **MikroORM**: Use for MongoDB or NoSQL requirements
+- **Knex**: Default driver, the only one bundled with the package, fastest in the test benchmarks
+- **ObjectionJS**: Optional, no npm release in about two years, kept for existing projects
+- **MikroORM**: Optional, use for MongoDB or NoSQL requirements
 - **Prisma**: Requires schema generation first, then entity generation
 - Cannot mix drivers - regenerate all when switching drivers
 - Each driver has different relation syntax in generated models
@@ -517,10 +570,11 @@ Using the default connection from schema:
 ```javascript
 const { PrismaClientLoader } = require('@reldens/storage');
 const { PrismaMariaDb } = require('@prisma/adapter-mariadb');
+const { Logger } = require('@reldens/utils');
 
 let prismaModules = PrismaClientLoader.load(process.cwd(), null, null, {PrismaAdapter: PrismaMariaDb});
 if(!prismaModules){
-    console.error('Failed to load Prisma client');
+    Logger.error('Failed to load Prisma client');
     process.exit(1);
 }
 ```
@@ -529,6 +583,7 @@ Using custom connection:
 ```javascript
 const { PrismaClientLoader } = require('@reldens/storage');
 const { PrismaMariaDb } = require('@prisma/adapter-mariadb');
+const { Logger } = require('@reldens/utils');
 
 let prismaModules = PrismaClientLoader.load(
     process.cwd(),
@@ -545,7 +600,7 @@ let prismaModules = PrismaClientLoader.load(
 );
 
 if(!prismaModules){
-    console.error('Failed to load Prisma client');
+    Logger.error('Failed to load Prisma client');
     process.exit(1);
 }
 ```
@@ -598,7 +653,7 @@ not mentioned in the test output at all. Install them locally without saving:
 
 ### DataServer Flow
 
-All three drivers follow this pattern:
+Every driver follows this pattern:
 
 ```
 1. new DataServer({config, rawEntities})
@@ -608,10 +663,10 @@ All three drivers follow this pattern:
 3. await executeRawSQL(dataServer, schemaSql)  ← Tables must exist before next step
    ↓
 4. await generateTestEntities(dataServer, driverName)
-   ├─ Introspects database schema
-   ├─ Creates models from tables
-   ├─ [Prisma only]: Generate schema + client + reconnect
-   └─ Calls dataServer.generateEntities()
+   - Introspects database schema
+   - Creates models from tables
+   - [Prisma only]: Generate schema + client + reconnect
+   - Calls dataServer.generateEntities()
    ↓
 5. dataServer.getEntity('entityName')  ← Returns repository
 ```
@@ -646,7 +701,8 @@ This happens ONCE during the `before()` hook inside `generateTestEntities()`.
 ### Test Files
 
 **Integration tests:**
-- `tests/integration/test-cross-driver-compatibility.js`: Full CRUD cycle for all 3 drivers
+- `tests/integration/test-drivers.js`: Full CRUD cycle for every active driver
+- `tests/integration/test-cross-driver-equivalence.js`: Same call on every active driver, fails on any divergence
 - `tests/integration/test-nested-filters.js`: Complex filter syntax (AND/OR/NOT/IN/LIKE)
 - `tests/integration/test-relations.js`: Relation loading and nested relations
 

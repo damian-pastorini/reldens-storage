@@ -17,6 +17,7 @@ class TestRunner
         this.failedCount = 0;
         this.currentSuite = '';
         this.currentGroup = '';
+        this.totalDuration = 0;
     }
 
     suite(name)
@@ -38,14 +39,33 @@ class TestRunner
         try {
             await testFn();
             this.passedCount++;
-            let duration = Date.now() - startTime;
-            Logger.info('    ✔ '+name+' ('+duration+'ms)');
+            this.logTestResult(name, startTime, false);
         } catch(error) {
             this.failedCount++;
-            let duration = Date.now() - startTime;
-            Logger.error('    ✖ '+name+' ('+duration+'ms)');
+            this.logTestResult(name, startTime, true);
             Logger.error('      Error: '+error.message);
         }
+    }
+
+    fail(name, message)
+    {
+        this.testCount++;
+        this.failedCount++;
+        Logger.error('    ✖ '+name);
+        Logger.error('      Error: '+message);
+        return this.getResults();
+    }
+
+    logTestResult(name, startTime, hasFailed)
+    {
+        let duration = Date.now() - startTime;
+        this.totalDuration += duration;
+        if(hasFailed){
+            Logger.error('    ✖ '+name+' ('+duration+'ms)');
+            return duration;
+        }
+        Logger.info('    ✔ '+name+' ('+duration+'ms)');
+        return duration;
     }
 
     getResults()
@@ -53,7 +73,8 @@ class TestRunner
         return {
             total: this.testCount,
             passed: this.passedCount,
-            failed: this.failedCount
+            failed: this.failedCount,
+            duration: this.totalDuration
         };
     }
 

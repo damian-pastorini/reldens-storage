@@ -5,6 +5,11 @@
  */
 
 const { FileHandler } = require('@reldens/server-utils');
+const { KyselyModulesLoader } = require('../../lib/kysely/kysely-modules-loader');
+const { DrizzleModulesLoader } = require('../../lib/drizzle/drizzle-modules-loader');
+const { MikroOrmModulesLoader } = require('../../lib/mikro-orm/mikro-orm-modules-loader');
+const { ObjectionModulesLoader } = require('../../lib/objection-js/objection-modules-loader');
+const { KnexModulesLoader } = require('../../lib/knex/knex-modules-loader');
 const { Logger, sc } = require('@reldens/utils');
 const { exec, execSync } = require('child_process');
 const { promisify } = require('util');
@@ -22,7 +27,8 @@ class TestHelpers
             user: process.env.RELDENS_TEST_DB_USER || 'test_user',
             password: process.env.RELDENS_TEST_DB_PASSWORD || 'test_password',
             database: process.env.RELDENS_TEST_DB_NAME || 'reldens_storage_test',
-            client: process.env.RELDENS_TEST_DB_CLIENT || 'mysql'
+            client: process.env.RELDENS_TEST_DB_CLIENT || 'mysql',
+            connectionLimit: Number(process.env.RELDENS_TEST_DB_CONNECTION_LIMIT || 2)
         };
     }
 
@@ -41,10 +47,11 @@ class TestHelpers
                 }
             }
             let serverConfig = {
-                client: driverName === 'objection-js' ? 'mysql2' : 'mysql',
+                client: this.driverClient(driverName),
                 config: {...config, multipleStatements: true},
                 rawEntities: rawEntities,
-                multipleStatements: true
+                multipleStatements: true,
+                poolConfig: {min: 0, max: 2}
             };
             if('prisma' === driverName){
                 let prismaModules = await this.loadPrismaModules(process.cwd(), config);
@@ -53,6 +60,7 @@ class TestHelpers
                 }
                 serverConfig.prismaModules = prismaModules;
             }
+            this.appendDriverModules(serverConfig, driverName);
             let DataServerClass = this.getDataServerClass(driverName);
             let dataServer = new DataServerClass(serverConfig);
             let connected = await dataServer.connect();
@@ -81,8 +89,56 @@ class TestHelpers
             let { PrismaDataServer } = require('../../lib/prisma/prisma-data-server');
             return PrismaDataServer;
         }
+        if('knex' === driverName){
+            let { KnexDataServer } = require('../../lib/knex/knex-data-server');
+            return KnexDataServer;
+        }
+        if('kysely' === driverName){
+            let { KyselyDataServer } = require('../../lib/kysely/kysely-data-server');
+            return KyselyDataServer;
+        }
+        if('drizzle' === driverName){
+            let { DrizzleDataServer } = require('../../lib/drizzle/drizzle-data-server');
+            return DrizzleDataServer;
+        }
         Logger.critical('Unknown driver: '+driverName);
         return false;
+    }
+
+    static driverClient(driverName)
+    {
+        if('objection-js' === driverName){
+            return 'mysql2';
+        }
+        if('knex' === driverName){
+            return 'mysql2';
+        }
+        return 'mysql';
+    }
+
+    static appendDriverModules(serverConfig, driverName)
+    {
+        this.registerNpmGlobalPaths();
+        if('kysely' === driverName){
+            serverConfig.kyselyModules = KyselyModulesLoader.load(false);
+            return serverConfig;
+        }
+        if('drizzle' === driverName){
+            serverConfig.drizzleModules = DrizzleModulesLoader.load(false);
+            return serverConfig;
+        }
+        if('mikro-orm' === driverName){
+            serverConfig.mikroOrmModules = MikroOrmModulesLoader.load(false, serverConfig.client);
+            return serverConfig;
+        }
+        if('objection-js' === driverName){
+            serverConfig.objectionModules = ObjectionModulesLoader.load(false);
+            return serverConfig;
+        }
+        if('knex' === driverName){
+            serverConfig.knexModules = KnexModulesLoader.load(false);
+        }
+        return serverConfig;
     }
 
     static async teardownDriver(dataServer)
@@ -91,6 +147,9 @@ class TestHelpers
             return;
         }
         try {
+            if(dataServer.db){
+                await dataServer.disconnect();
+            }
             if(dataServer.knex){
                 await dataServer.knex.destroy();
             }
@@ -294,14 +353,16 @@ class TestHelpers
     static verifyAllPackages()
     {
         let required = [
-            {name: '@mikro-orm/core', version: '7.2.0'},
-            {name: '@mikro-orm/mongodb', version: '7.2.0'},
-            {name: '@mikro-orm/mysql', version: '7.2.0'},
             {name: 'knex', version: '3.3.0'},
-            {name: 'mysql', version: '2.18.1'},
-            {name: 'mysql2', version: '3.24.3'},
-            {name: 'objection', version: '3.1.5'}
+            {name: 'mysql2', version: '3.24.4'}
         ];
+        if(this.isObjectionFlagEnabled()){
+            required.push({name: 'objection', version: '3.1.5', optional: true});
+        }
+        if(this.isMikroOrmFlagEnabled()){
+            required.push({name: '@mikro-orm/core', version: '7.2.0', optional: true});
+            required.push({name: '@mikro-orm/mysql', version: '7.2.0', optional: true});
+        }
         if(this.isPrismaFlagEnabled()){
             required.push({name: 'prisma', version: '7.9.1', optional: true});
             required.push({name: '@prisma/client', version: '7.9.1', optional: true});
@@ -361,7 +422,11 @@ class TestHelpers
             Logger.warning('Could not resolve the npm global root: '+error.message);
             return '';
         }
-        let extraPaths = [globalRoot, FileHandler.joinPaths(globalRoot, '@prisma', 'client', 'node_modules')];
+        let extraPaths = [
+            globalRoot,
+            FileHandler.joinPaths(globalRoot, '@prisma', 'client', 'node_modules'),
+            FileHandler.joinPaths(process.cwd(), 'node_modules')
+        ];
         let currentPaths = process.env.NODE_PATH ? process.env.NODE_PATH.split(delimiter) : [];
         process.env.NODE_PATH = [...currentPaths, ...extraPaths].join(delimiter);
         NodeModule._initPaths();
@@ -383,11 +448,65 @@ class TestHelpers
         return this.isPrismaAvailable();
     }
 
+    static isObjectionFlagEnabled()
+    {
+        return '1' === String(process.env.RELDENS_TEST_OBJECTION_ENABLED);
+    }
+
+    static isObjectionEnabled()
+    {
+        if(!this.isObjectionFlagEnabled()){
+            return false;
+        }
+        return this.canResolvePackage('objection');
+    }
+
+    static isMikroOrmFlagEnabled()
+    {
+        return '1' === String(process.env.RELDENS_TEST_MIKRO_ORM_ENABLED);
+    }
+
+    static isMikroOrmEnabled()
+    {
+        if(!this.isMikroOrmFlagEnabled()){
+            return false;
+        }
+        return this.canResolvePackage('@mikro-orm/core') && this.canResolvePackage('@mikro-orm/mysql');
+    }
+
+    static isKyselyEnabled()
+    {
+        if('1' !== String(process.env.RELDENS_TEST_KYSELY_ENABLED)){
+            return false;
+        }
+        return this.canResolvePackage('kysely');
+    }
+
+    static isDrizzleEnabled()
+    {
+        if('1' !== String(process.env.RELDENS_TEST_DRIZZLE_ENABLED)){
+            return false;
+        }
+        return this.canResolvePackage('drizzle-orm');
+    }
+
     static activeDriverNames()
     {
-        let driverNames = ['objection-js', 'mikro-orm'];
+        let driverNames = ['knex'];
+        if(this.isObjectionEnabled()){
+            driverNames.push('objection-js');
+        }
+        if(this.isMikroOrmEnabled()){
+            driverNames.push('mikro-orm');
+        }
         if(this.isPrismaEnabled()){
             driverNames.push('prisma');
+        }
+        if(this.isKyselyEnabled()){
+            driverNames.push('kysely');
+        }
+        if(this.isDrizzleEnabled()){
+            driverNames.push('drizzle');
         }
         return driverNames;
     }
@@ -481,7 +600,14 @@ class TestHelpers
             }
             let adapterModule = require('@prisma/adapter-mariadb');
             let adapterConfig = config
-                ? { host: config.host, port: config.port, user: config.user, password: config.password, database: config.database }
+                ? {
+                    host: config.host,
+                    port: config.port,
+                    user: config.user,
+                    password: config.password,
+                    database: config.database,
+                    connectionLimit: sc.get(config, 'connectionLimit', 2)
+                }
                 : process.env.RELDENS_DB_URL;
             let client = new prismaModule.PrismaClient({ adapter: new adapterModule.PrismaMariaDb(adapterConfig) });
             await client.$connect();
@@ -508,6 +634,10 @@ class TestHelpers
         if(FileHandler.exists(prismaConfigPath)){
             Logger.info('Cleaning up Prisma config file: '+prismaConfigPath);
             FileHandler.remove(prismaConfigPath);
+        }
+        if('1' === process.env.RELDENS_TEST_KEEP_GENERATED){
+            Logger.info('Keeping generated entities folder, RELDENS_TEST_KEEP_GENERATED is active.');
+            return;
         }
         let entitiesPath = FileHandler.joinPaths(process.cwd(), 'generated-entities');
         if(FileHandler.exists(entitiesPath)){
@@ -798,7 +928,7 @@ class TestHelpers
         this.fixGeneratedRequirePaths();
         this.compareGeneratedWithExpected(driverName, 'entities');
         this.compareGeneratedWithExpected(driverName, 'models/'+driverName);
-        if('objection-js' === driverName){
+        if('knex' === driverName){
             this.compareGeneratedWithExpected(driverName, 'entities-config.js');
             this.compareGeneratedWithExpected(driverName, 'entities-translations.js');
         }

@@ -52,6 +52,16 @@ let dataServer = new PrismaDataServer(serverConfig);
 - The `prisma` CLI package is resolved through `prisma/package.json`, its `exports["."]` target `build/types.js` is not shipped in 7.9.1
 - When a package does not resolve locally, `TestHelpers.registerNpmGlobalPaths()` adds the `npm root -g` folder (and its nested `@prisma/client/node_modules`) to `NODE_PATH` and retries, so a global Prisma install is found too
 - Local install for the Prisma driver tests: `npm install --no-save prisma@7.9.1 @prisma/client@7.9.1 @prisma/adapter-mariadb@7.9.1`
+- Only `knex` and `mysql2` ship with the package. The other drivers are opt in, each behind its own flag and install:
+  - `RELDENS_TEST_OBJECTION_ENABLED=1` with `npm install --no-save objection@3.1.5`
+  - `RELDENS_TEST_MIKRO_ORM_ENABLED=1` with `npm install --no-save @mikro-orm/core@7.2.0 @mikro-orm/mysql@7.2.0`
+  - `RELDENS_TEST_KYSELY_ENABLED=1` with `npm install --no-save kysely`
+  - `RELDENS_TEST_DRIZZLE_ENABLED=1` with `npm install --no-save drizzle-orm`
+  - Global installs (`npm install -g ...`) work for every driver except Prisma, `TestHelpers.registerNpmGlobalPaths()` adds the npm global root and the project `node_modules` to `NODE_PATH` before the loaders resolve the packages, but `prisma generate` only resolves `@prisma/client` from the project
+  - Everything in one command: `npm install --no-save objection@3.1.5 @mikro-orm/core@7.2.0 @mikro-orm/mysql@7.2.0 @mikro-orm/mongodb@7.2.0 kysely drizzle-orm prisma@7.10.0 @prisma/client@7.10.0 @prisma/adapter-mariadb@7.10.0`
+  - Always use that single command: any later `npm install`, with or without `--no-save`, prunes the `--no-save` packages from a previous run
+  - Run every driver: `RELDENS_TEST_OBJECTION_ENABLED=1 RELDENS_TEST_MIKRO_ORM_ENABLED=1 RELDENS_TEST_PRISMA_ENABLED=1 RELDENS_TEST_KYSELY_ENABLED=1 RELDENS_TEST_DRIZZLE_ENABLED=1 npm run test`
+- `TestHelpers.getTestDbConfig()` sets `connectionLimit: 2` and every test data server passes `poolConfig: {min: 0, max: 2}`, so six drivers plus the sample data servers stay under the MySQL connection limit
 - Full setup, enable and run instructions: `.claude/prisma-setup.md`
 
 **Key Points:**
@@ -189,7 +199,7 @@ describe('Driver: '+driverName, () => {
 
 ### Flow: Connection → Tables → Entity Generation → Repositories
 
-All three drivers follow this pattern:
+Every active driver follows this pattern:
 
 ```
 1. new DataServer({config, rawEntities})
@@ -396,7 +406,7 @@ static async generateTestEntities(dataServer, driverName)
             await dataServer.connect();
         }
     }
-    // Run EntitiesGenerator — introspects DB, writes entity + model files to generated-entities/
+    // Run EntitiesGenerator: introspects DB, writes entity + model files to generated-entities/
     await this.runEntitiesGenerator(dataServer, driverName);
     this.fixGeneratedRequirePaths();
     this.compareGeneratedWithExpected(driverName, 'entities');
@@ -413,7 +423,7 @@ static async generateTestEntities(dataServer, driverName)
 
 ### Entity Generation Flow
 
-`runEntitiesGenerator()` creates an `EntitiesGenerator` instance pointed at the connected `dataServer`, calls `generator.generate()`, which internally calls `dataServer.fetchEntitiesFromDatabase()` to read real table metadata from `information_schema`. This is why tables must exist before calling `generateTestEntities()` — without tables, introspection returns empty and generation fails.
+`runEntitiesGenerator()` creates an `EntitiesGenerator` instance pointed at the connected `dataServer`, calls `generator.generate()`, which internally calls `dataServer.fetchEntitiesFromDatabase()` to read real table metadata from `information_schema`. This is why tables must exist before calling `generateTestEntities()`: without tables, introspection returns empty and generation fails.
 
 After generation, `loadGeneratedEntities()` loads the `generated-entities/models/[driver]/registered-models-[driver].js` file, sets `dataServer.rawEntities`, and calls `dataServer.generateEntities()` to register all driver instances in the entity manager.
 
@@ -623,13 +633,13 @@ static async generatePrismaClient(){
 
 ### Per Driver Test Suite
 
-**1. Initialization — runs once per driver (`DriverRegistry.initialize()`):**
-- `setupDriver()` — connect to database
-- `executeRawSQL()` — create tables from SQL schema
-- `generateTestEntities()` — introspect DB, run EntitiesGenerator, load entities
-- `dataServer.getEntity()` — obtain repository references
+**1. Initialization, runs once per driver (`DriverRegistry.initialize()`):**
+- `setupDriver()`: connect to database
+- `executeRawSQL()`: create tables from SQL schema
+- `generateTestEntities()`: introspect DB, run EntitiesGenerator, load entities
+- `dataServer.getEntity()`: obtain repository references
 
-**2. Test execution — per group method in each test class:**
+**2. Test execution, per group method in each test class:**
 
 Each test class (DriversTest, NestedFiltersTest, RelationsTest, RawQueriesTest) has group methods. Each group method begins with `await TestHelpers.cleanDatabase(this.dataServer)` to DELETE all rows, then runs its tests via `runner.test()`.
 
@@ -642,9 +652,9 @@ async testCreateOperations() {
 }
 ```
 
-**3. Teardown — runs once per driver (`DriverRegistry.cleanup()`):**
-- `dropTestTables()` — DROP all test tables
-- `teardownDriver()` — disconnect from database
+**3. Teardown, runs once per driver (`DriverRegistry.cleanup()`):**
+- `dropTestTables()`: DROP all test tables
+- `teardownDriver()`: disconnect from database
 
 ### All Drivers Execution
 
@@ -762,9 +772,9 @@ async testCreateOperations() {
 
 ## Summary: The Complete Flow
 
-**For each driver (objection-js, mikro-orm, prisma):**
+**For each active driver (knex always, the others behind their `RELDENS_TEST_*_ENABLED` flag):**
 
-**Initialization — once per driver:**
+**Initialization, once per driver:**
 
 1. Connect to database
    - ObjectionJS: create Knex instance
@@ -782,7 +792,7 @@ async testCreateOperations() {
    - Prisma only: generate schema.prisma (subprocess), generate PrismaClient (subprocess), reconnect
    - Load registered-models file, call dataServer.generateEntities()
 
-**Per test group — cleanDatabase() at start of each group method:**
+**Per test group, cleanDatabase() at start of each group method:**
 - SET FOREIGN_KEY_CHECKS=0
 - DELETE FROM test_reviews
 - DELETE FROM test_products
@@ -791,7 +801,7 @@ async testCreateOperations() {
 
 **Per test:** create test data, perform operations, assert results.
 
-**Teardown — once per driver:**
+**Teardown, once per driver:**
 
 1. Drop all tables
    - SET FOREIGN_KEY_CHECKS=0
@@ -830,7 +840,7 @@ async testCreateOperations() {
 - ✅ Added error checking for entity generation
 
 **test-raw-queries.js:**
-- ✅ Added — covers rawQuery with single and multiple SQL statements
+- Added, covers rawQuery with single and multiple SQL statements
 
 ### Test Helpers (All Fixed)
 

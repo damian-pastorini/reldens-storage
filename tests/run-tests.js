@@ -11,6 +11,9 @@ const { DriverRegistry } = require('./utils/driver-registry');
 const DriversTest = require('./integration/test-drivers');
 const NestedFiltersTest = require('./integration/test-nested-filters');
 const RelationsTest = require('./integration/test-relations');
+const ReldensShapeRelationsTest = require('./integration/test-reldens-shape-relations');
+const ReldensSampleDataTest = require('./integration/test-reldens-sample-data');
+const { CrossDriverEquivalenceTest } = require('./integration/test-cross-driver-equivalence');
 const RawQueriesTest = require('./integration/test-raw-queries');
 const EntityManagerTest = require('./unit/test-entity-manager');
 const TypeMapperTest = require('./unit/test-type-mapper');
@@ -31,6 +34,7 @@ class RunTests
     constructor()
     {
         this.allCounts = {total: 0, passed: 0, failed: 0};
+        this.driverBenchmarks = {};
         this.filter = null;
         this.suite = null;
         this.driver = null;
@@ -78,8 +82,8 @@ class RunTests
             TestHelpers.cleanupGeneratedFiles();
         }
         await this.runPreFlightChecks(config);
-        let hasIntegrationTests = !this.suite || this.suite === 'integration';
-        let hasUnitTests = !this.suite || this.suite === 'unit';
+        let hasIntegrationTests = !this.suite || 'integration' === this.suite;
+        let hasUnitTests = !this.suite || 'unit' === this.suite;
         if(this.filter){
             if(this.filter.includes('integration')){
                 hasUnitTests = false;
@@ -107,6 +111,7 @@ class RunTests
         Logger.info('Tests passed: '+this.allCounts.passed);
         Logger.info('Tests failed: '+this.allCounts.failed);
         Logger.info('='.repeat(60));
+        this.logDriverBenchmarks();
         if(hasIntegrationTests){
             await this.driverRegistry.cleanup();
         }
@@ -122,83 +127,122 @@ class RunTests
         if(this.driver){
             driverNames = [this.driver];
         }
+        await this.runCrossDriverTests(driverNames);
         for(let driverName of driverNames){
             let dataServer = this.driverRegistry.getDriver(driverName);
             let repos = this.driverRegistry.getRepos(driverName);
             if(!dataServer){
-                Logger.warning('Driver '+driverName+' not available, skipping tests');
+                Logger.error('Driver '+driverName+' is not available, counted as a failure.');
+                this.allCounts.total++;
+                this.allCounts.failed++;
                 continue;
             }
+            await this.runDriverTests(driverName, dataServer, repos);
+        }
+    }
+
+    async runCrossDriverTests(driverNames)
+    {
+        if(2 > driverNames.length){
+            Logger.info('Cross driver equivalence needs two active drivers, only '+driverNames.join(', ')+' is.');
+            return this.allCounts;
+        }
+        try {
+            return this.appendCounts(
+                await (new CrossDriverEquivalenceTest(this.driverRegistry, driverNames)).run(),
+                false
+            );
+        } catch(error) {
+            Logger.critical('Cross driver equivalence tests crashed: '+error.message);
+            Logger.critical(error.stack);
+            this.allCounts.total++;
+            this.allCounts.failed++;
+        }
+        return this.allCounts;
+    }
+
+    integrationTestClasses()
+    {
+        return [
+            {label: 'drivers', testClass: DriversTest, isBenchmarked: true},
+            {label: 'nested filters', testClass: NestedFiltersTest, isBenchmarked: true},
+            {label: 'relations', testClass: RelationsTest, isBenchmarked: true},
+            {label: 'raw queries', testClass: RawQueriesTest, isBenchmarked: true},
+            {label: 'reldens shape relations', testClass: ReldensShapeRelationsTest, isBenchmarked: false},
+            {label: 'reldens sample data', testClass: ReldensSampleDataTest, isBenchmarked: false}
+        ];
+    }
+
+    async runDriverTests(driverName, dataServer, repos)
+    {
+        for(let testDefinition of this.integrationTestClasses()){
             try {
-                let driversTest = new DriversTest(dataServer, repos, driverName);
-                let driversResult = await driversTest.run();
-                this.allCounts.total += driversResult.total;
-                this.allCounts.passed += driversResult.passed;
-                this.allCounts.failed += driversResult.failed;
+                let testInstance = new testDefinition.testClass(dataServer, repos, driverName);
+                this.appendCounts(await testInstance.run(), testDefinition.isBenchmarked ? driverName : false);
             } catch(error) {
-                Logger.critical('Driver '+driverName+' tests crashed: '+error.message);
+                Logger.critical(
+                    'Driver '+driverName+' '+testDefinition.label+' tests crashed: '+error.message
+                );
                 Logger.critical(error.stack);
-            }
-            try {
-                let nestedFiltersTest = new NestedFiltersTest(dataServer, repos, driverName);
-                let nestedFiltersResult = await nestedFiltersTest.run();
-                this.allCounts.total += nestedFiltersResult.total;
-                this.allCounts.passed += nestedFiltersResult.passed;
-                this.allCounts.failed += nestedFiltersResult.failed;
-            } catch(error) {
-                Logger.critical('Driver '+driverName+' nested filters tests crashed: '+error.message);
-                Logger.critical(error.stack);
-            }
-            try {
-                let relationsTest = new RelationsTest(dataServer, repos, driverName);
-                let relationsResult = await relationsTest.run();
-                this.allCounts.total += relationsResult.total;
-                this.allCounts.passed += relationsResult.passed;
-                this.allCounts.failed += relationsResult.failed;
-            } catch(error) {
-                Logger.critical('Driver '+driverName+' relations tests crashed: '+error.message);
-                Logger.critical(error.stack);
-            }
-            try {
-                let rawQueriesTest = new RawQueriesTest(dataServer, repos, driverName);
-                let rawQueriesResult = await rawQueriesTest.run();
-                this.allCounts.total += rawQueriesResult.total;
-                this.allCounts.passed += rawQueriesResult.passed;
-                this.allCounts.failed += rawQueriesResult.failed;
-            } catch(error) {
-                Logger.critical('Driver '+driverName+' raw queries tests crashed: '+error.message);
-                Logger.critical(error.stack);
+                this.allCounts.total++;
+                this.allCounts.failed++;
             }
         }
+        return this.driverBenchmarks;
+    }
+
+    appendCounts(result, driverName)
+    {
+        this.allCounts.total += result.total;
+        this.allCounts.passed += result.passed;
+        this.allCounts.failed += result.failed;
+        if(!driverName){
+            return result;
+        }
+        if(!sc.hasOwn(this.driverBenchmarks, driverName)){
+            this.driverBenchmarks[driverName] = {total: 0, duration: 0};
+        }
+        this.driverBenchmarks[driverName].total += result.total;
+        this.driverBenchmarks[driverName].duration += sc.get(result, 'duration', 0);
+        return result;
+    }
+
+    logDriverBenchmarks()
+    {
+        let driverNames = Object.keys(this.driverBenchmarks);
+        if(0 === driverNames.length){
+            return false;
+        }
+        Logger.info('='.repeat(60));
+        Logger.info('DRIVER BENCHMARKS - INTEGRATION TESTS');
+        Logger.info('='.repeat(60));
+        for(let driverName of driverNames){
+            let benchmark = this.driverBenchmarks[driverName];
+            let average = 0 === benchmark.total ? 0 : (benchmark.duration / benchmark.total).toFixed(2);
+            Logger.info(
+                driverName+' - tests: '+benchmark.total
+                +' - total: '+benchmark.duration+'ms'
+                +' - average: '+average+'ms'
+            );
+        }
+        Logger.info('='.repeat(60));
+        return true;
     }
 
     async runUnitTests()
     {
-        let entityManagerTest = new EntityManagerTest();
-        let entityManagerResult = await entityManagerTest.run();
-        this.allCounts.total += entityManagerResult.total;
-        this.allCounts.passed += entityManagerResult.passed;
-        this.allCounts.failed += entityManagerResult.failed;
-        let typeMapperTest = new TypeMapperTest();
-        let typeMapperResult = await typeMapperTest.run();
-        this.allCounts.total += typeMapperResult.total;
-        this.allCounts.passed += typeMapperResult.passed;
-        this.allCounts.failed += typeMapperResult.failed;
-        let driversUnitTest = new DriversUnitTest();
-        let driversUnitResult = await driversUnitTest.run();
-        this.allCounts.total += driversUnitResult.total;
-        this.allCounts.passed += driversUnitResult.passed;
-        this.allCounts.failed += driversUnitResult.failed;
-        let entitiesGenerationTest = new EntitiesGenerationTest();
-        let entitiesGenerationResult = await entitiesGenerationTest.run();
-        this.allCounts.total += entitiesGenerationResult.total;
-        this.allCounts.passed += entitiesGenerationResult.passed;
-        this.allCounts.failed += entitiesGenerationResult.failed;
-        let modelsGenerationTest = new ModelsGenerationTest();
-        let modelsGenerationResult = await modelsGenerationTest.run();
-        this.allCounts.total += modelsGenerationResult.total;
-        this.allCounts.passed += modelsGenerationResult.passed;
-        this.allCounts.failed += modelsGenerationResult.failed;
+        let unitTestClasses = [
+            EntityManagerTest,
+            TypeMapperTest,
+            DriversUnitTest,
+            EntitiesGenerationTest,
+            ModelsGenerationTest
+        ];
+        for(let UnitTestClass of unitTestClasses){
+            let unitTest = new UnitTestClass();
+            this.appendCounts(await unitTest.run(), false);
+        }
+        return this.allCounts;
     }
 
     async runPreFlightChecks(config)
@@ -228,7 +272,9 @@ process.on('uncaughtException', (error) => {
 });
 
 let runner = new RunTests();
-runner.run().catch(error => {
+runner.run().then(counts => {
+    process.exit(0 < counts.failed ? 1 : 0);
+}).catch(error => {
     Logger.info('CATASTROPHIC ERROR: Test runner failed completely\n');
     Logger.info('Error: '+error.message+'\n');
     Logger.info(error.stack+'\n');

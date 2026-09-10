@@ -10,6 +10,9 @@ const { TestHelpers } = require('../utils/test-helpers');
 const { ObjectionJsDriver } = require('../../lib/objection-js/objection-js-driver');
 const { MikroOrmDriver } = require('../../lib/mikro-orm/mikro-orm-driver');
 const { PrismaDriver } = require('../../lib/prisma/prisma-driver');
+const { KnexDriver } = require('../../lib/knex/knex-driver');
+const { KyselyDriver } = require('../../lib/kysely/kysely-driver');
+const { DrizzleDriver } = require('../../lib/drizzle/drizzle-driver');
 
 class DriversUnitTest
 {
@@ -19,7 +22,10 @@ class DriversUnitTest
         this.runner = new TestRunner();
         this.DRIVERS = [
             {name: 'objection-js', class: ObjectionJsDriver},
-            {name: 'mikro-orm', class: MikroOrmDriver}
+            {name: 'mikro-orm', class: MikroOrmDriver},
+            {name: 'knex', class: KnexDriver},
+            {name: 'kysely', class: KyselyDriver},
+            {name: 'drizzle', class: DrizzleDriver}
         ];
         if(TestHelpers.isPrismaEnabled()){
             this.DRIVERS.push({name: 'prisma', class: PrismaDriver});

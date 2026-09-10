@@ -5,7 +5,8 @@
  */
 
 const { TestRunner, assert } = require('../utils/test-runner');
-const { ModelsGeneration } = require('../../lib/generators/models-generation');
+const { RelationsDetection } = require('../../lib/generators/relations-detection');
+const { MikroOrmModelsGeneration } = require('../../lib/mikro-orm/mikro-orm-models-generation');
 
 class ModelsGenerationTest
 {
@@ -70,46 +71,52 @@ class ModelsGenerationTest
         };
     }
 
+    createRelationsDetection()
+    {
+        let relationsDetection = new RelationsDetection({});
+        relationsDetection.allTablesData = this.createTables();
+        return relationsDetection;
+    }
+
     createGeneration()
     {
-        let generation = new ModelsGeneration({});
-        generation.setAllTablesData(this.createTables());
-        return generation;
+        return new MikroOrmModelsGeneration(this.createRelationsDetection());
     }
 
     mikroOrmDefinition(generation, tableName)
     {
-        let tableData = generation.allTablesData[tableName];
-        return generation.getEntityPropertiesDefinition(tableData.columns, 'mikro-orm', tableName, tableData);
+        let tableData = generation.relationsDetection.allTablesData[tableName];
+        return generation.generateEntityProperties(tableData.columns, tableName, tableData);
     }
 
     async run()
     {
         this.runner.suite('ModelsGeneration');
-        await this.testDetermineMikroOrmForwardKind();
+        await this.testForwardRelationKind();
         await this.testMikroOrmOneToOneDefinitions();
         await this.testObjectionJsRelationTypes();
         return this.runner.getResults();
     }
 
-    async testDetermineMikroOrmForwardKind()
+    async testForwardRelationKind()
     {
-        this.runner.group('determineMikroOrmForwardKind');
+        this.runner.group('forwardRelationKind');
         let generation = this.createGeneration();
         await this.runner.test('should return 1:1 for a unique foreign key column', async () => {
-            let kind = generation.determineMikroOrmForwardKind(this.createColumn({key: 'UNI'}));
+            let kind = generation.forwardRelationKind(this.createColumn({key: 'UNI'}));
             assert.strictEqual(kind, '1:1');
         });
         await this.runner.test('should return 1:1 for a primary foreign key column', async () => {
-            let kind = generation.determineMikroOrmForwardKind(this.createColumn({key: 'PRI'}));
+            let kind = generation.forwardRelationKind(this.createColumn({key: 'PRI'}));
             assert.strictEqual(kind, '1:1');
         });
         await this.runner.test('should return m:1 for an indexed foreign key column', async () => {
-            let kind = generation.determineMikroOrmForwardKind(this.createColumn({key: 'MUL'}));
+            let kind = generation.forwardRelationKind(this.createColumn({key: 'MUL'}));
+            // @possible-hallucinated-undefined-method
             assert.strictEqual(kind, 'm:1');
         });
         await this.runner.test('should return m:1 for a non indexed foreign key column', async () => {
-            let kind = generation.determineMikroOrmForwardKind(this.createColumn({key: ''}));
+            let kind = generation.forwardRelationKind(this.createColumn({key: ''}));
             assert.strictEqual(kind, 'm:1');
         });
     }
@@ -143,18 +150,21 @@ class ModelsGenerationTest
     async testObjectionJsRelationTypes()
     {
         this.runner.group('ObjectionJS relation types for unique foreign keys');
-        let generation = this.createGeneration();
-        let tables = generation.allTablesData;
+        let relationsDetection = this.createRelationsDetection();
+        let tables = relationsDetection.allTablesData;
         await this.runner.test('should keep BelongsToOneRelation on the owning side', async () => {
-            let relations = generation.detectObjectionJsRelations('test_product_details', tables.test_product_details);
+            let relations = relationsDetection.detectForwardRelations(
+                'test_product_details',
+                tables.test_product_details
+            );
             assert.strictEqual(relations.related_test_products.relationType, 'BelongsToOneRelation');
         });
         await this.runner.test('should use HasOneRelation on the referenced side of a unique foreign key', async () => {
-            let reverseRelations = generation.detectReverseObjectionJsRelations('test_products');
+            let reverseRelations = relationsDetection.detectReverseRelations('test_products');
             assert.strictEqual(reverseRelations.related_test_product_details.relationType, 'HasOneRelation');
         });
         await this.runner.test('should use HasManyRelation on the referenced side of a non unique foreign key', async () => {
-            let reverseRelations = generation.detectReverseObjectionJsRelations('test_products');
+            let reverseRelations = relationsDetection.detectReverseRelations('test_products');
             assert.strictEqual(reverseRelations.related_test_reviews.relationType, 'HasManyRelation');
         });
     }

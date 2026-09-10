@@ -35,6 +35,14 @@ class TestProductDetailsEntity extends EntityProperties
             dimensions: {
                 dbType: 'varchar'
             },
+            customData: {
+                type: 'textarea',
+                dbType: 'text'
+            },
+            useTimeOut: {
+                type: 'number',
+                dbType: 'int'
+            },
             created_at: {
                 type: 'datetime',
                 dbType: 'timestamp'
@@ -47,7 +55,8 @@ class TestProductDetailsEntity extends EntityProperties
         let propertiesKeys = Object.keys(properties);
         let showProperties = propertiesKeys;
         let editProperties = sc.removeFromArray([...propertiesKeys], ['id', 'created_at', 'updated_at']);
-        let listProperties = propertiesKeys;
+        let listProperties = [...propertiesKeys];
+        listProperties.splice(listProperties.indexOf('customData'), 1);
         return {
             showProperties,
             editProperties,

@@ -7,12 +7,14 @@
 class TestProductDetailsModel
 {
 
-    constructor(id, product_id, weight, dimensions, created_at, updated_at)
+    constructor(id, product_id, weight, dimensions, customData, useTimeOut, created_at, updated_at)
     {
         this.id = id;
         this.product_id = product_id;
         this.weight = weight;
         this.dimensions = dimensions;
+        this.customData = customData;
+        this.useTimeOut = useTimeOut;
         this.created_at = created_at;
         this.updated_at = updated_at;
     }
