@@ -1,7 +1,7 @@
 {
     "name": "@reldens/storage",
     "scope": "@reldens",
-    "version": "0.120.0",
+    "version": "0.121.0",
     "description": "Reldens - Storage",
     "author": "Damian A. Pastorini",
     "license": "MIT",
@@ -56,7 +56,7 @@
         "test:driver": "node tests/run-tests.js --driver="
     },
     "dependencies": {
-        "@reldens/server-utils": "^0.59.0",
+        "@reldens/server-utils": "^0.60.0",
         "@reldens/utils": "^0.58.0",
         "knex": "3.3.0",
         "mysql2": "3.24.4"
