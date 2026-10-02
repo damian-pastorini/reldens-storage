@@ -188,7 +188,8 @@ npx reldens-storage-prisma --host=<host> --database=<db> --user=<user> --passwor
   (`{MikroORM, EntityCaseNamingStrategy, Collection, MySqlDriver|MongoDriver}`), `kyselyModules`
   (`{Kysely, MysqlDialect, sql, db}`), `drizzleModules` (`{drizzle, orm, db}`) or `prismaModules`, each validated
   on `connect()` by its `*ModulesValidator`. When the object is missing the data server resolves the packages from
-  the project `node_modules` through the matching `*ModulesLoader` (all built on `PackageResolver`).
+  the project `node_modules` through the matching `*ModulesLoader` (all built on the `@reldens/server-utils`
+  `PackageResolver`, which returns `false` and fills `PackageResolver.error.message` that the loader logs).
 - Model generation: `QueryBuilderModelsGeneration` (`lib/query-builder-models-generation.js`) serves `knex` and
   `kysely`, `DrizzleModelsGeneration` (`lib/drizzle/drizzle-models-generation.js`) extends it and emits the
   `drizzle-orm/mysql-core` column builders through `TypeMapper.mapDbTypeToDrizzleBuilder()`. Both are registered

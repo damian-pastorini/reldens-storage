@@ -14,7 +14,6 @@ const { MikroOrmDriver } = require('./lib/mikro-orm/mikro-orm-driver');
 const { MikroOrmDataServer } = require('./lib/mikro-orm/mikro-orm-data-server');
 const { MikroOrmModulesValidator } = require('./lib/mikro-orm/mikro-orm-modules-validator');
 const { MikroOrmModulesLoader } = require('./lib/mikro-orm/mikro-orm-modules-loader');
-const { PackageResolver } = require('./lib/package-resolver');
 const { EntitiesGenerator } = require('./lib/entities-generator');
 const { EntityProperties } = require('./lib/entity-properties');
 const { TypeMapper } = require('./lib/type-mapper');
@@ -40,9 +39,10 @@ const { DrizzleDataServer } = require('./lib/drizzle/drizzle-data-server');
 const { DrizzleModulesValidator } = require('./lib/drizzle/drizzle-modules-validator');
 const { DrizzleModulesLoader } = require('./lib/drizzle/drizzle-modules-loader');
 const { RELATION_PREFIX } = require('./lib/relation-key');
+const { PackageResolver } = require('@reldens/server-utils');
 
-let objectionPackage = PackageResolver.optionalPackage('objection');
-let mikroOrmCorePackage = PackageResolver.optionalPackage('@mikro-orm/core');
+let objectionPackage = PackageResolver.loadPackage('objection');
+let mikroOrmCorePackage = PackageResolver.loadPackage('@mikro-orm/core');
 
 module.exports = {
     BaseDataServer,
@@ -86,7 +86,6 @@ module.exports = {
     MikroOrmDriver,
     MikroOrmModulesValidator,
     MikroOrmModulesLoader,
-    PackageResolver,
     KnexModulesValidator,
     KnexModulesLoader,
     PrismaDataServer,
