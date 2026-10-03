@@ -187,7 +187,7 @@ class StorageEntitiesGenerator
             generatorProps.objectionModules = ObjectionModulesLoader.load(this.projectPath);
             return Boolean(generatorProps.objectionModules);
         }
-        generatorProps.knexModules = KnexModulesLoader.load(this.projectPath);
+        generatorProps.knexModules = KnexModulesLoader.load();
         return Boolean(generatorProps.knexModules);
     }
 
