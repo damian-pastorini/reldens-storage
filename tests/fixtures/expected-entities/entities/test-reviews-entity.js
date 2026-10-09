@@ -56,6 +56,14 @@ class TestReviewsEntity extends EntityProperties
                 type: 'number',
                 dbType: 'int'
             },
+            category_slug: {
+                type: 'reference',
+                reference: 'test_categories',
+                alias: 'related_test_categories',
+                referenceKey: 'slug',
+                onDelete: 'setNull',
+                dbType: 'varchar'
+            },
             created_at: {
                 type: 'datetime',
                 dbType: 'timestamp'

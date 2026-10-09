@@ -367,6 +367,20 @@ schema themselves.
 Regenerating entities is required after changing a foreign key referential action: the rule is read live from
 `information_schema`, not from `prisma/schema.prisma`, and `prisma db pull` alone does not update it.
 
+## Reference Properties Key
+
+A foreign key that targets a column other than the referenced table primary key (for example `items_item.key`) also
+carries that column as `referenceKey: '<column>'`, right after the `alias` and before the `onDelete`. Consumers like
+the `@reldens/cms` admin edit forms use it as the select option value, so the stored value is the referenced column
+and not the referenced ID.
+
+- `MysqlTablesProvider` stores the raw `REFERENCED_COLUMN_NAME` as `column.referencedColumn`.
+- `EntitiesGenerator` passes the `ModelsGeneration` `RelationsDetection` instance to `EntitiesGeneration`, so both
+  read the same fetched tables (`relationsDetection.allTablesData`, set once in `EntitiesGenerator.generate()`).
+- `EntitiesGeneration.addReferenceKey()` pushes the attribute only when the referenced column is not the referenced
+  table primary key (`RelationsDetection.detectPrimaryKeyColumn()`).
+- A foreign key to the primary key, or to a table missing from the fetched data, generates no `referenceKey`.
+
 ## Prisma Driver Validation System
 
 ### ensureRequiredFields() Method
