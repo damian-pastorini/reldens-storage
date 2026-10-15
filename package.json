@@ -54,7 +54,7 @@
         "@mikro-orm/core": "7.1.7",
         "@mikro-orm/mongodb": "7.1.7",
         "@mikro-orm/mysql": "7.1.7",
-        "@prisma/adapter-mariadb": "7.8.0",
+        "@prisma/adapter-mariadb": "7.10.1",
         "@prisma/client": "7.8.0",
         "@reldens/server-utils": "^0.55.0",
         "@reldens/utils": "^0.57.0",
