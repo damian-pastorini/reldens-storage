@@ -354,7 +354,7 @@ class TestHelpers
     {
         let required = [
             {name: 'knex', version: '3.3.0'},
-            {name: 'mysql2', version: '3.24.4'}
+            {name: 'mysql2', version: '3.24.6'}
         ];
         if(this.isObjectionFlagEnabled()){
             required.push({name: 'objection', version: '3.1.5', optional: true});
