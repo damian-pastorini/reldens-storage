@@ -127,6 +127,7 @@ jobs:
 
       - name: Run tests
         env:
+          RELDENS_LOG_LEVEL: '9'
           RELDENS_TEST_DB_HOST: 127.0.0.1
           RELDENS_TEST_DB_PORT: '3306'
           RELDENS_TEST_DB_USER: root
