@@ -51,6 +51,13 @@ jobs:
         with:
           ref: ${{ github.event.inputs.ref || github.ref }}
 
+      - name: Checkout the reldens migrations used by the storage tests
+        uses: actions/checkout@v4
+        with:
+          repository: damian-pastorini/reldens
+          ref: master
+          path: reldens-main
+
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
@@ -127,6 +134,7 @@ jobs:
           RELDENS_TEST_DB_NAME: reldens_storage_test
           RELDENS_TEST_RELDENS_DB_NAME: reldens_storage_test_full
           RELDENS_TEST_DB_CLIENT: mysql
+          RELDENS_TEST_MIGRATIONS_PATH: ${{ github.workspace }}/reldens-main/migrations/production
           RELDENS_DB_URL: mysql://root:test_root_password@127.0.0.1:3306/reldens_storage_test
         run: npm test --if-present
 
