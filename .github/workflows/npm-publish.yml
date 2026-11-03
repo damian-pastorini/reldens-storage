@@ -55,7 +55,7 @@ jobs:
         uses: actions/checkout@v4
         with:
           repository: damian-pastorini/reldens
-          ref: master
+          ref: 4.0.0-beta.39.9
           path: reldens-main
 
       - name: Set up Node.js
