@@ -10,6 +10,7 @@ const { TestHelpers } = require('../utils/test-helpers');
 const { CategoriesFixtures } = require('../fixtures/categories-fixtures');
 const { ProductsFixtures } = require('../fixtures/products-fixtures');
 const { ReviewsFixtures } = require('../fixtures/reviews-fixtures');
+const { ProductDetailsFixtures } = require('../fixtures/product-details-fixtures');
 
 class RelationsTest
 {
@@ -19,6 +20,7 @@ class RelationsTest
         this.dataServer = dataServer;
         this.categoriesRepo = repos.testCategories;
         this.productsRepo = repos.testProducts;
+        this.productDetailsRepo = repos.testProductDetails;
         this.driverName = driverName;
         this.runner = new TestRunner();
     }
@@ -36,7 +38,149 @@ class RelationsTest
         await this.testCreateWithRelations();
         await this.testNestedRelations();
         await this.testRelationStringParsing();
+        await this.testOneToOneRelations();
+        await this.testCamelCaseColumns();
         return this.runner.getResults();
+    }
+
+    async testCamelCaseColumns()
+    {
+        this.runner.group('CamelCase Columns');
+        await TestHelpers.cleanDatabase(this.dataServer);
+        await TestHelpers.insertFixturesViaRawSQL(this.dataServer, 'test_categories', [
+            CategoriesFixtures.category_relations_1
+        ]);
+        await TestHelpers.insertFixturesViaRawSQL(this.dataServer, 'test_products', [
+            ProductsFixtures.product_relations_1
+        ]);
+        await TestHelpers.insertFixturesViaRawSQL(this.dataServer, 'test_product_details', [
+            ProductDetailsFixtures.product_details_relations_1
+        ]);
+        await this.runner.test('should read a camelCase column with the exact database column name', async () => {
+            let record = await this.productDetailsRepo.loadById(4600);
+            assert.ok(record);
+            assert.strictEqual(record.customData, ProductDetailsFixtures.product_details_relations_1.customData);
+            assert.strictEqual(record.useTimeOut, ProductDetailsFixtures.product_details_relations_1.useTimeOut);
+        });
+        await this.runner.test('should read a bigint column as a number', async () => {
+            let record = await this.productDetailsRepo.loadById(4600);
+            assert.strictEqual(typeof record.total_views, 'number');
+            assert.strictEqual(record.total_views, ProductDetailsFixtures.product_details_relations_1.total_views);
+            assert.strictEqual(record.total_views + 1, ProductDetailsFixtures.product_details_relations_1.total_views + 1);
+        });
+        await this.runner.test('should filter by a camelCase column', async () => {
+            let records = await this.productDetailsRepo.loadBy('useTimeOut', 45);
+            assert.strictEqual(records.length, 1);
+            assert.strictEqual(records[0].id, 4600);
+        });
+        await this.runner.test('should write a camelCase column', async () => {
+            await this.productDetailsRepo.updateById(4600, {useTimeOut: 90});
+            let updated = await this.productDetailsRepo.loadById(4600);
+            assert.strictEqual(updated.useTimeOut, 90);
+        });
+        await this.runner.test('should populate a relation whose target has camelCase columns', async () => {
+            let results = await this.productsRepo.loadWithRelations({id: 2600}, ['related_test_product_details']);
+            assert.strictEqual(results.length, 1);
+            assert.strictEqual(
+                results[0].related_test_product_details.customData,
+                ProductDetailsFixtures.product_details_relations_1.customData
+            );
+        });
+        await this.runner.test('should return an explicit null for an empty nullable foreign key', async () => {
+            let record = await this.productDetailsRepo.loadById(4600);
+            assert.strictEqual(record.category_id, null);
+        });
+        await this.runner.test('should keep the foreign key column value on a nested populated relation', async () => {
+            let results = await this.categoriesRepo.loadWithRelations(
+                {id: 1600},
+                ['related_test_products.related_test_product_details']
+            );
+            let product = results[0].related_test_products[0];
+            assert.strictEqual(product.category_id, 1600);
+            assert.strictEqual(product.related_test_product_details.product_id, 2600);
+        });
+        await this.runner.test('should keep a nullable foreign key on the leaf of a nested populate', async () => {
+            let results = await this.categoriesRepo.loadWithRelations(
+                {id: 1600},
+                ['related_test_products.related_test_product_details']
+            );
+            let details = results[0].related_test_products[0].related_test_product_details;
+            assert.strictEqual(details.category_id, null);
+        });
+        await this.runner.test('should keep the foreign key column value on a load without relations', async () => {
+            let record = await this.productDetailsRepo.loadById(4600);
+            assert.strictEqual(record.product_id, 2600);
+        });
+        await this.runner.test('should keep the foreign key column value on loadBy without relations', async () => {
+            let records = await this.productDetailsRepo.loadBy('id', 4600);
+            assert.strictEqual(records[0].product_id, 2600);
+        });
+        await this.runner.test('should accept an object written into a text column', async () => {
+            await this.productDetailsRepo.updateById(4600, {customData: {onlyCurrentPlayer: true}});
+            let updated = await this.productDetailsRepo.loadById(4600);
+            assert.ok(updated.customData);
+        });
+    }
+
+    async testOneToOneRelations()
+    {
+        this.runner.group('One To One Relations');
+        await TestHelpers.cleanDatabase(this.dataServer);
+        await TestHelpers.insertFixturesViaRawSQL(this.dataServer, 'test_categories', [
+            CategoriesFixtures.category_relations_1
+        ]);
+        await TestHelpers.insertFixturesViaRawSQL(this.dataServer, 'test_products', [
+            ProductsFixtures.product_relations_1,
+            {...ProductsFixtures.product_relations_2, category_id: 1600}
+        ]);
+        await TestHelpers.insertFixturesViaRawSQL(this.dataServer, 'test_product_details', [
+            ProductDetailsFixtures.product_details_relations_1
+        ]);
+        await this.runner.test('should load the one to one relation from the referenced side as a single object', async () => {
+            let results = await this.productsRepo.loadWithRelations({id: 2600}, ['related_test_product_details']);
+            assert.strictEqual(results.length, 1);
+            let details = results[0].related_test_product_details;
+            assert.ok(details);
+            assert.ok(!Array.isArray(details));
+            assert.strictEqual(details.id, 4600);
+        });
+        await this.runner.test('should load the one to one relation from the owning side as a single object', async () => {
+            let results = await this.productDetailsRepo.loadWithRelations({id: 4600}, ['related_test_products']);
+            assert.strictEqual(results.length, 1);
+            let product = results[0].related_test_products;
+            assert.ok(product);
+            assert.ok(!Array.isArray(product));
+            assert.strictEqual(product.id, 2600);
+        });
+        await this.runner.test('should return no related record on the one to one relation when none exists', async () => {
+            let result = await this.productsRepo.loadByIdWithRelations(2601, ['related_test_product_details']);
+            assert.ok(result);
+            assert.ok(!result.related_test_product_details);
+        });
+        await this.runner.test('should count records joining the one to one relation from the referenced side', async () => {
+            let count = await this.productsRepo.countWithRelations({}, ['related_test_product_details']);
+            assert.strictEqual(count, 2);
+        });
+        await this.runner.test('should count records joining the one to one relation from the owning side', async () => {
+            let count = await this.productDetailsRepo.countWithRelations({}, ['related_test_products']);
+            assert.strictEqual(count, 1);
+        });
+        await this.runner.test('should create a record with a nested one to one relation', async () => {
+            let productWithDetails = {
+                ...ProductsFixtures.product_create_nested,
+                category_id: 1600,
+                related_test_product_details: {...ProductDetailsFixtures.product_details_create_nested}
+            };
+            let created = await this.productsRepo.createWithRelations(
+                productWithDetails,
+                ['related_test_product_details']
+            );
+            assert.ok(created);
+            assert.ok(created.id);
+            let details = await this.productDetailsRepo.loadBy('product_id', created.id);
+            assert.strictEqual(details.length, 1);
+            assert.strictEqual(details[0].dimensions, ProductDetailsFixtures.product_details_create_nested.dimensions);
+        });
     }
 
     async testLoadWithRelations()
@@ -70,6 +214,10 @@ class RelationsTest
             assert.ok(results.length > 0);
             let product = results[0];
             assert.ok(product.related_test_categories);
+            assert.strictEqual(
+                product.related_test_categories.name,
+                CategoriesFixtures.category_relations_1.name
+            );
             assert.ok(product.related_test_reviews);
             assert.ok(Array.isArray(product.related_test_reviews));
         });
@@ -300,6 +448,9 @@ class RelationsTest
         await TestHelpers.insertFixturesViaRawSQL(this.dataServer, 'test_reviews', [
             ReviewsFixtures.review_relations_1
         ]);
+        await TestHelpers.insertFixturesViaRawSQL(this.dataServer, 'test_product_details', [
+            ProductDetailsFixtures.product_details_relations_1
+        ]);
         await this.runner.test('should load nested relations (category > products > reviews)', async () => {
             let results = await this.categoriesRepo.loadWithRelations(
                 {id: 1600},
@@ -312,6 +463,50 @@ class RelationsTest
             assert.ok(category.related_test_products.length > 0);
             let product = category.related_test_products[0];
             assert.ok(product.related_test_reviews);
+        });
+        await this.runner.test('should load a relation whose foreign key references a non primary column', async () => {
+            let results = await this.categoriesRepo.loadWithRelations(
+                {id: 1600},
+                ['related_test_reviews']
+            );
+            let related = results[0].related_test_reviews;
+            assert.ok(Array.isArray(related));
+            assert.strictEqual(related.length, 1);
+            assert.strictEqual(related[0].reviewer_name, ReviewsFixtures.review_relations_1.reviewer_name);
+        });
+        await this.runner.test('should load a collection nested under an owning relation', async () => {
+            let results = await this.productDetailsRepo.loadAllWithRelations([
+                'related_test_products.related_test_reviews'
+            ]);
+            let product = results[0].related_test_products;
+            assert.strictEqual(typeof product, 'object');
+            assert.strictEqual(product.name, ProductsFixtures.product_relations_1.name);
+            assert.ok(Array.isArray(product.related_test_reviews));
+            assert.strictEqual(
+                product.related_test_reviews[0].reviewer_name,
+                ReviewsFixtures.review_relations_1.reviewer_name
+            );
+        });
+        await this.runner.test('should load a nested relation through an owning relation as an entity', async () => {
+            let results = await this.productDetailsRepo.loadWithRelations(
+                {id: 4600},
+                ['related_test_products.related_test_categories']
+            );
+            let product = results[0].related_test_products;
+            assert.strictEqual(product.name, ProductsFixtures.product_relations_1.name);
+            assert.strictEqual(
+                product.related_test_categories.name,
+                CategoriesFixtures.category_relations_1.name
+            );
+        });
+        await this.runner.test('should return the nested collection as an array on the deepest level', async () => {
+            let results = await this.categoriesRepo.loadWithRelations(
+                {id: 1600},
+                ['related_test_products.related_test_reviews']
+            );
+            let product = results[0].related_test_products[0];
+            assert.ok(Array.isArray(product.related_test_reviews));
+            assert.strictEqual(product.related_test_reviews.length, 1);
         });
     }
 
@@ -341,6 +536,10 @@ class RelationsTest
             assert.ok(results);
             assert.ok(results.length > 0);
             assert.ok(results[0].related_test_categories);
+            assert.strictEqual(
+                results[0].related_test_categories.name,
+                CategoriesFixtures.category_relations_1.name
+            );
         });
     }
 

@@ -5,11 +5,13 @@
  */
 
 const { TestCategoriesEntity } = require('./entities/test-categories-entity');
+const { TestProductDetailsEntity } = require('./entities/test-product-details-entity');
 const { TestProductsEntity } = require('./entities/test-products-entity');
 const { TestReviewsEntity } = require('./entities/test-reviews-entity');
 
 let entitiesConfig = {
     testCategories: TestCategoriesEntity.propertiesConfig(),
+    testProductDetails: TestProductDetailsEntity.propertiesConfig(),
     testProducts: TestProductsEntity.propertiesConfig(),
     testReviews: TestReviewsEntity.propertiesConfig()
 };

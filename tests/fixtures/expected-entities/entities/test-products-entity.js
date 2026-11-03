@@ -24,6 +24,7 @@ class TestProductsEntity extends EntityProperties
                 type: 'reference',
                 reference: 'test_categories',
                 alias: 'related_test_categories',
+                onDelete: 'cascade',
                 isRequired: true,
                 dbType: 'int'
             },

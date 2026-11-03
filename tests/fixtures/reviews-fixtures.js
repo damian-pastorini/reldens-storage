@@ -26,7 +26,8 @@ module.exports.ReviewsFixtures = {
         title: 'Good value',
         comment: 'Works as expected',
         is_verified: 1,
-        helpful_count: 5
+        helpful_count: 5,
+        category_slug: 'relations-test-1'
     },
     review_relations_2: {
         id: 3601,

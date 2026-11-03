@@ -6,6 +6,7 @@
 
 const { TestRunner, assert } = require('../utils/test-runner');
 const { EntitiesGeneration } = require('../../lib/generators/entities-generation');
+const { RelationsDetection } = require('../../lib/generators/relations-detection');
 
 class EntitiesGenerationTest
 {
@@ -38,7 +39,108 @@ class EntitiesGenerationTest
         await this.testAddUniqueAttribute();
         await this.testGetPropertyAttributesUnique();
         await this.testGeneratePropertiesConfigUnique();
+        await this.testAddReferenceDeleteRule();
+        await this.testAddReferenceKey();
         return this.runner.getResults();
+    }
+
+    createReferencedItemsTable()
+    {
+        return {
+            items_item: {
+                name: 'items_item',
+                columns: {
+                    id: this.createColumn({name: 'id', type: 'int', key: 'PRI', nullable: false}),
+                    key: this.createColumn({name: 'key', key: 'UNI', nullable: false})
+                }
+            }
+        };
+    }
+
+    async testAddReferenceKey()
+    {
+        this.runner.group('addReferenceKey');
+        let relationsDetection = new RelationsDetection({});
+        relationsDetection.allTablesData = this.createReferencedItemsTable();
+        let generation = new EntitiesGeneration({relationsDetection});
+        await this.runner.test('should push the referenced column when it is not the primary key', async () => {
+            let column = this.createColumn({
+                name: 'item_key',
+                referencedTable: 'items_item',
+                referencedColumn: 'key'
+            });
+            let props = generation.getPropertyAttributes(column, 'item_key', {items_item: 1});
+            assert.deepStrictEqual(props, [
+                'type: \'reference\'',
+                'reference: \'items_item\'',
+                'alias: \'related_items_item\'',
+                'referenceKey: \'key\'',
+                'dbType: \'varchar\''
+            ]);
+        });
+        await this.runner.test('should push nothing when the referenced column is the primary key', async () => {
+            let column = this.createColumn({
+                name: 'item_id',
+                type: 'int',
+                referencedTable: 'items_item',
+                referencedColumn: 'id'
+            });
+            let props = generation.getPropertyAttributes(column, 'item_id', {items_item: 1});
+            assert.deepStrictEqual(props, [
+                'type: \'reference\'',
+                'reference: \'items_item\'',
+                'alias: \'related_items_item\'',
+                'dbType: \'int\''
+            ]);
+        });
+        await this.runner.test('should place the reference key before the delete rule', async () => {
+            let column = this.createColumn({
+                name: 'item_key',
+                referencedTable: 'items_item',
+                referencedColumn: 'key',
+                referencedDeleteRule: 'CASCADE'
+            });
+            let props = generation.getPropertyAttributes(column, 'item_key', {items_item: 1});
+            assert.strictEqual(props.indexOf('referenceKey: \'key\'') + 1, props.indexOf('onDelete: \'cascade\''));
+        });
+        await this.runner.test('should push nothing when the referenced table is unknown', async () => {
+            let props = [];
+            generation.addReferenceKey(props, this.createColumn({referencedTable: 'other', referencedColumn: 'key'}));
+            assert.deepStrictEqual(props, []);
+        });
+    }
+
+    async testAddReferenceDeleteRule()
+    {
+        this.runner.group('addReferenceDeleteRule');
+        let generation = new EntitiesGeneration({});
+        await this.runner.test('should map a CASCADE rule', async () => {
+            let props = [];
+            generation.addReferenceDeleteRule(props, this.createColumn({referencedDeleteRule: 'CASCADE'}));
+            assert.deepStrictEqual(props, ['onDelete: \'cascade\'']);
+        });
+        await this.runner.test('should map a multi word rule to camel case', async () => {
+            let props = [];
+            generation.addReferenceDeleteRule(props, this.createColumn({referencedDeleteRule: 'SET NULL'}));
+            assert.deepStrictEqual(props, ['onDelete: \'setNull\'']);
+            let noActionProps = [];
+            generation.addReferenceDeleteRule(noActionProps, this.createColumn({referencedDeleteRule: 'NO ACTION'}));
+            assert.deepStrictEqual(noActionProps, ['onDelete: \'noAction\'']);
+        });
+        await this.runner.test('should push nothing when the column has no delete rule', async () => {
+            let props = [];
+            generation.addReferenceDeleteRule(props, this.createColumn({}));
+            assert.deepStrictEqual(props, []);
+        });
+        await this.runner.test('should include the delete rule on a reference property', async () => {
+            let column = this.createColumn({
+                type: 'int',
+                referencedTable: 'test_categories',
+                referencedDeleteRule: 'SET NULL'
+            });
+            let props = generation.getPropertyAttributes(column, 'category_id', {test_categories: 1});
+            assert.ok(-1 !== props.indexOf('onDelete: \'setNull\''));
+        });
     }
 
     async testAddUniqueAttribute()

@@ -37,21 +37,22 @@ const schema = new EntitySchema({
     class: TestReviewsModel,
     tableName: 'test_reviews',
     properties: {
-        id: { type: 'number', primary: true },
-        product_id: { type: 'number', persist: false },
-        reviewer_name: { type: 'string' },
-        reviewer_email: { type: 'string' },
-        rating: { type: 'number' },
-        title: { type: 'string', nullable: true },
-        comment: { type: 'string', nullable: true },
-        is_verified: { type: 'number', nullable: true },
-        helpful_count: { type: 'number', nullable: true },
-        created_at: { type: 'Date', nullable: true },
-        updated_at: { type: 'Date', nullable: true },
+        id: { type: 'int', primary: true },
+        product_id: { type: 'int' },
+        reviewer_name: { type: 'varchar' },
+        reviewer_email: { type: 'varchar' },
+        rating: { type: 'tinyint' },
+        title: { type: 'varchar', nullable: true },
+        comment: { type: 'text', nullable: true },
+        is_verified: { type: 'tinyint', nullable: true },
+        helpful_count: { type: 'int', nullable: true },
+        created_at: { type: 'timestamp', nullable: true },
+        updated_at: { type: 'timestamp', nullable: true },
         related_test_products: {
             kind: 'm:1',
             entity: () => require('./test-products-model').TestProductsModel,
-            joinColumns: ['product_id']
+            joinColumns: ['product_id'],
+            persist: false
         }
     },
 });

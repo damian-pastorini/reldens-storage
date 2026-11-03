@@ -1,0 +1,28 @@
+/**
+ *
+ * Reldens - {{modelClassName}}
+ *
+ */
+
+const DrizzleMysqlCore = require('drizzle-orm/mysql-core');
+
+let table = DrizzleMysqlCore.mysqlTable('{{tableName}}', {
+    {{entityPropertiesDefinition}}
+});
+
+class {{modelClassName}}
+{
+
+    static get tableName()
+    {
+        return '{{tableName}}';
+    }
+
+    static get table()
+    {
+        return table;
+    }
+{{idColumn}}{{modelRelations}}
+}
+
+module.exports.{{modelClassName}} = {{modelClassName}};

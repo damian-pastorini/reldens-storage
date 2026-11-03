@@ -34,14 +34,19 @@ const schema = new EntitySchema({
     class: TestCategoriesModel,
     tableName: 'test_categories',
     properties: {
-        id: { type: 'number', primary: true },
-        name: { type: 'string' },
-        slug: { type: 'string' },
-        description: { type: 'string', nullable: true },
-        is_active: { type: 'number', nullable: true },
-        display_order: { type: 'number', nullable: true },
-        created_at: { type: 'Date', nullable: true },
-        updated_at: { type: 'Date', nullable: true },
+        id: { type: 'int', primary: true },
+        name: { type: 'varchar' },
+        slug: { type: 'varchar' },
+        description: { type: 'text', nullable: true },
+        is_active: { type: 'tinyint', nullable: true },
+        display_order: { type: 'int', nullable: true },
+        created_at: { type: 'timestamp', nullable: true },
+        updated_at: { type: 'timestamp', nullable: true },
+        related_test_product_details: {
+            kind: '1:m',
+            entity: () => require('./test-product-details-model').TestProductDetailsModel,
+            mappedBy: 'related_test_categories'
+        },
         related_test_products: {
             kind: '1:m',
             entity: () => require('./test-products-model').TestProductsModel,

@@ -34,6 +34,7 @@ class TestProductsModel
     {
         return {
             test_categories: 'one',
+            test_product_details: 'one',
             test_reviews: 'many'
         };
     }
@@ -42,6 +43,7 @@ class TestProductsModel
     {
         return {
             'related_test_categories': 'test_categories',
+            'related_test_product_details': 'test_product_details',
             'related_test_reviews': 'test_reviews'
         };
     }

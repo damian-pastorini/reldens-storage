@@ -16,6 +16,7 @@
 /CLAUDE.local.md
 /.claude/skills/
 /tests/.env.test
+/tests/generated-reldens-schema
 /logs/
 /.test-entities
 /.claude/hook-state.json

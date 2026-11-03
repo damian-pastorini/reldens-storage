@@ -19,7 +19,7 @@
 ## Package Overview
 
 **@reldens/storage** is the database abstraction layer for Reldens. It provides:
-- Multi-ORM support (objection-js, mikro-orm, prisma)
+- Multi-ORM support (knex by default, plus kysely, drizzle, objection-js, mikro-orm and prisma as optional drivers)
 - Entity/model generation from database schemas
 - Unified API across different ORM drivers
 - Database connection management
@@ -137,6 +137,16 @@ npx reldens-storage-prisma --host=<host> --database=<db> --user=<user> --passwor
 - `prisma-type-caster.js`: Type casting and normalization
 - `prisma-relation-resolver.js`: Relation mapping and transformations
 - `prisma-client-loader.js`: Utility for loading Prisma Client instances
+- `prisma-modules-validator.js`: Validates the `prismaModules` object passed by the consumer
+- **Prisma is not a dependency of this package**: no Prisma package is listed in `package.json`, no `lib/` file
+  requires `@prisma/*`. Consumers install `prisma`, `@prisma/client` and `@prisma/adapter-mariadb` themselves and
+  pass everything through one `prismaModules` object: `{PrismaClient, Prisma, PrismaAdapter, adapter, client}`.
+  `PrismaAdapter` is any Prisma driver adapter class (instantiated with the connection string), `adapter` is an
+  already instantiated adapter used as is, the package never forces a specific adapter.
+  `PrismaDataServer.connect()` validates it with `PrismaModulesValidator` (capability checks on the instance:
+  `$connect`, `$disconnect`, `$queryRaw`, `$queryRawUnsafe`, `$executeRawUnsafe`, `$transaction`,
+  `_runtimeDataModel`) and builds the client from `PrismaClient` + `PrismaClientLoader.resolveAdapter()` only
+  when no `client` was passed. `Prisma.DbNull` is read from `prismaModules.Prisma`.
 - Features:
   - Schema-first approach with auto-introspection
   - Type-safe queries with Prisma Client
@@ -155,6 +165,59 @@ npx reldens-storage-prisma --host=<host> --database=<db> --user=<user> --passwor
   - `provider = "prisma-client-js"` is kept (deprecated but functional); switching to `prisma-client` would require additional adapter changes
   - `_runtimeDataModel` in Prisma 7 is pruned: fields only contain `{ name, kind, type, relationName, dbName }` - `isId`, `isRequired`, `hasDefaultValue` are stripped. ID field detection falls back to `field.name === 'id' && field.kind === 'scalar'`
   - `prisma.config.js` at project root is generated automatically by `PrismaSchemaGenerator.generateConfigFile()` and cleaned up after tests
+
+**Knex, Kysely and Drizzle Drivers** (`lib/knex/`, `lib/kysely/`, `lib/drizzle/`):
+- All three extend `QueryBuilderDriver` (`lib/query-builder-driver.js`), which implements 26 of the 30
+  `BaseDriver` methods once as compositions of five primitives: `insertRow()`, `selectRows()`, `update()`,
+  `delete()`, `count()`. Each concrete driver implements only those five plus its own filter translation.
+- `RelationsLoader` (`lib/relations-loader.js`) loads relations with one extra query per relation level
+  (`WHERE to_column IN (parent values)`), reading the plain `relationMappings` data
+  (`{relation, tableName, from, to}`) emitted into the generated models. `HasManyRelation` yields an array,
+  `BelongsToOneRelation` and `HasOneRelation` yield one row or `null`. Nested paths (`a.b`) recurse through the
+  related driver's own loader. It also implements `createWithRelations()`, creating BelongsToOne parents before
+  the row and HasOne/HasMany children after it.
+- Relation filters become `IN (SELECT to_column FROM related WHERE ...)` sub queries, so `countWithRelations()`
+  equals `count()` and joins never inflate the counts.
+- `Mysql2ConnectionConfig` (`lib/mysql2-connection-config.js`) holds the mysql2 option whitelist that used to
+  live inside `ObjectionJsDataServer`; the Knex, Kysely and Drizzle data servers all sanitize through it.
+- `ObjectionJsDataServer` now extends `KnexDataServer`; the Knex connection code exists once.
+  `connectionErrorMessage()` is overridden so a failed Objection connection still logs
+  `'Connection failed, Objection JS error.'`.
+- Knex is the only driver package shipped as a dependency and the default driver. Objection, MikroORM, Kysely,
+  Drizzle and Prisma are NOT: the consumer passes `objectionModules` (`{Model}`), `mikroOrmModules`
+  (`{MikroORM, EntityCaseNamingStrategy, Collection, MySqlDriver|MongoDriver}`), `kyselyModules`
+  (`{Kysely, MysqlDialect, sql, db}`), `drizzleModules` (`{drizzle, orm, db}`) or `prismaModules`, each validated
+  on `connect()` by its `*ModulesValidator`. When the object is missing the data server resolves the packages from
+  the project `node_modules` through the matching `*ModulesLoader` (all built on the `@reldens/server-utils`
+  `PackageResolver`, which returns `false` and fills `PackageResolver.error.message` that the loader logs).
+- Model generation: `QueryBuilderModelsGeneration` (`lib/query-builder-models-generation.js`) serves `knex` and
+  `kysely`, `DrizzleModelsGeneration` (`lib/drizzle/drizzle-models-generation.js`) extends it and emits the
+  `drizzle-orm/mysql-core` column builders through `TypeMapper.mapDbTypeToDrizzleBuilder()`. Both are registered
+  in `ModelsGeneration.driversGeneration`. Templates: `query-builder-model.template`, `drizzle-model.template`.
+- `parseEnumValues()` moved from `EntitiesGeneration` to `BaseGenerator` so the Drizzle `mysqlEnum` builder can
+  use it.
+- Tests: the `knex` driver runs on every `npm run test`. Every other driver runs only when its flag is `1` and its
+  packages resolve, locally or from the npm global root (`TestHelpers.registerNpmGlobalPaths()` adds
+  `npm root -g` and the project `node_modules` to `NODE_PATH`): `RELDENS_TEST_OBJECTION_ENABLED`,
+  `RELDENS_TEST_MIKRO_ORM_ENABLED`, `RELDENS_TEST_PRISMA_ENABLED`, `RELDENS_TEST_KYSELY_ENABLED`,
+  `RELDENS_TEST_DRIZZLE_ENABLED`. Install every optional driver in one go without touching `package.json`
+  (Prisma must be local, `prisma generate` never resolves `@prisma/client` from the global root):
+
+  ```bash
+  npm install --no-save objection@3.1.5 @mikro-orm/core@7.2.0 @mikro-orm/mysql@7.2.0 @mikro-orm/mongodb@7.2.0 kysely drizzle-orm prisma@7.10.0 @prisma/client@7.10.0 @prisma/adapter-mariadb@7.10.0
+  ```
+
+  Then run all six drivers:
+
+  ```bash
+  RELDENS_TEST_OBJECTION_ENABLED=1 RELDENS_TEST_MIKRO_ORM_ENABLED=1 RELDENS_TEST_PRISMA_ENABLED=1 RELDENS_TEST_KYSELY_ENABLED=1 RELDENS_TEST_DRIZZLE_ENABLED=1 npm run test
+  ```
+
+  Always install them in that single command: every `npm install`, with or without `--no-save`, prunes the
+  `--no-save` packages left by a previous run, so installing them in separate commands removes the earlier
+  ones. The cross driver equivalence suite runs
+  only when two or more drivers are active, and the benchmark table at the end of the run covers the drivers,
+  queries and CRUD suites of every active driver.
 
 ### Generators
 
@@ -283,6 +346,40 @@ All generated entity relations follow the `related_*` prefix pattern:
   - The `_id` suffix is removed from column name when multiple references exist
 
 This pattern is consistent across all ORM drivers and is defined in `entities-config.js`.
+
+## Reference Properties Delete Rule
+
+Every generated `type: 'reference'` property also carries the foreign key referential action as
+`onDelete: '<rule>'`, so consumers can tell what a parent delete does to the child rows without querying the
+schema themselves.
+
+- `MysqlTablesProvider` joins `information_schema.REFERENTIAL_CONSTRAINTS` on the FK constraint name and stores
+  the raw `DELETE_RULE` as `column.referencedDeleteRule`.
+- `BaseGenerator.mapDeleteRule()` normalizes it to camel case, matching the Prisma vocabulary: `CASCADE` becomes
+  `cascade`, `SET NULL` becomes `setNull`, `NO ACTION` becomes `noAction`, `SET DEFAULT` becomes `setDefault`,
+  `RESTRICT` stays `restrict`.
+- `BaseGenerator.addReferenceDeleteRule()` pushes the attribute, called from
+  `EntitiesGeneration.addTypeAttribute()` right after the `alias`. Only the entities are affected, the ORM model
+  generation does not emit it.
+- The property is omitted when there is no rule to report, so an entity generated before this existed simply has
+  no `onDelete` and consumers must treat a missing value as unknown rather than assuming a default.
+
+Regenerating entities is required after changing a foreign key referential action: the rule is read live from
+`information_schema`, not from `prisma/schema.prisma`, and `prisma db pull` alone does not update it.
+
+## Reference Properties Key
+
+A foreign key that targets a column other than the referenced table primary key (for example `items_item.key`) also
+carries that column as `referenceKey: '<column>'`, right after the `alias` and before the `onDelete`. Consumers like
+the `@reldens/cms` admin edit forms use it as the select option value, so the stored value is the referenced column
+and not the referenced ID.
+
+- `MysqlTablesProvider` stores the raw `REFERENCED_COLUMN_NAME` as `column.referencedColumn`.
+- `EntitiesGenerator` passes the `ModelsGeneration` `RelationsDetection` instance to `EntitiesGeneration`, so both
+  read the same fetched tables (`relationsDetection.allTablesData`, set once in `EntitiesGenerator.generate()`).
+- `EntitiesGeneration.addReferenceKey()` pushes the attribute only when the referenced column is not the referenced
+  table primary key (`RelationsDetection.detectPrimaryKeyColumn()`).
+- A foreign key to the primary key, or to a table missing from the fetched data, generates no `referenceKey`.
 
 ## Prisma Driver Validation System
 
@@ -424,8 +521,9 @@ The `prepareDataWithRelations()` method (lines 156-199) automatically converts F
 - ENUM changes: entity updates with new available values
 
 ### Driver-Specific Notes
-- **ObjectionJS**: Recommended driver, mature and stable
-- **MikroORM**: Use for MongoDB or NoSQL requirements
+- **Knex**: Default driver, the only one bundled with the package, fastest in the test benchmarks
+- **ObjectionJS**: Optional, no npm release in about two years, kept for existing projects
+- **MikroORM**: Optional, use for MongoDB or NoSQL requirements
 - **Prisma**: Requires schema generation first, then entity generation
 - Cannot mix drivers - regenerate all when switching drivers
 - Each driver has different relation syntax in generated models
@@ -450,7 +548,7 @@ The `prepareDataWithRelations()` method (lines 156-199) automatically converts F
 
 **Method:**
 ```javascript
-PrismaClientLoader.load(projectPath, customPath, connectionData)
+PrismaClientLoader.load(projectPath, customPath, connectionData, prismaModules)
 ```
 
 **Parameters:**
@@ -463,28 +561,35 @@ PrismaClientLoader.load(projectPath, customPath, connectionData)
   - `host` (string): Database host
   - `port` (number): Database port
   - `database` (string): Database name
+- `prismaModules` (object): Must contain a `PrismaAdapter` class or an `adapter` instance, required from the
+  consumer project (any Prisma driver adapter)
 
-**Returns:** PrismaClient instance or null on error
+**Returns:** the completed `prismaModules` object (`PrismaClient`, `Prisma`, the adapter, `client`) or null on error
 
 **Behavior:**
 - If `customPath` is provided, uses that path
 - Otherwise, uses a default path: `projectPath/prisma/client`
 - Validates that Prisma Client exists at the path
-- Requires `prismaModule.PrismaClient` export
-- If `connectionData` is null: Creates adapter using `process.env.DATABASE_URL`
-- If `connectionData` is provided: Builds connection string and creates `PrismaMariaDb` adapter
-- Returns initialized PrismaClient instance
-- **Prisma v7**: Uses `@prisma/adapter-mariadb` - `PrismaClient` constructor receives `{ adapter }` instead of `{ datasources }`
+- Requires `prismaModule.PrismaClient` export, copies `PrismaClient` and `Prisma` from it into `prismaModules`
+- If `connectionData` is null: Creates adapter using `process.env.RELDENS_DB_URL`
+- If `connectionData` is provided: Builds connection string and creates the adapter
+- `createWithAdapter(prismaModules, connectionUrl)` validates the object with `PrismaModulesValidator`, sets
+  `prismaModules.client` and returns the object
+- `resolveAdapter(prismaModules, connectionUrl)` returns `prismaModules.adapter` when present, otherwise
+  `new prismaModules.PrismaAdapter(connectionUrl)`; also used by `PrismaDataServer.connect()`
+- **Prisma v7**: `PrismaClient` constructor receives `{ adapter }` instead of `{ datasources }`
 
 **Usage Examples:**
 
 Using the default connection from schema:
 ```javascript
 const { PrismaClientLoader } = require('@reldens/storage');
+const { PrismaMariaDb } = require('@prisma/adapter-mariadb');
+const { Logger } = require('@reldens/utils');
 
-const prismaClient = PrismaClientLoader.load(process.cwd(), null, null);
-if(!prismaClient){
-    console.error('Failed to load Prisma client');
+let prismaModules = PrismaClientLoader.load(process.cwd(), null, null, {PrismaAdapter: PrismaMariaDb});
+if(!prismaModules){
+    Logger.error('Failed to load Prisma client');
     process.exit(1);
 }
 ```
@@ -492,8 +597,10 @@ if(!prismaClient){
 Using custom connection:
 ```javascript
 const { PrismaClientLoader } = require('@reldens/storage');
+const { PrismaMariaDb } = require('@prisma/adapter-mariadb');
+const { Logger } = require('@reldens/utils');
 
-const prismaClient = PrismaClientLoader.load(
+let prismaModules = PrismaClientLoader.load(
     process.cwd(),
     null,
     {
@@ -503,14 +610,26 @@ const prismaClient = PrismaClientLoader.load(
         host: 'localhost',
         port: 3306,
         database: 'mydb'
-    }
+    },
+    {PrismaAdapter: PrismaMariaDb}
 );
 
-if(!prismaClient){
-    console.error('Failed to load Prisma client');
+if(!prismaModules){
+    Logger.error('Failed to load Prisma client');
     process.exit(1);
 }
 ```
+
+**CLI:** `bin/reldens-storage.js` resolves the adapter package from `--prismaAdapter` (default
+`@prisma/adapter-mariadb`, looked up in `[path]/node_modules` or used as an absolute path) and the class from
+`--prismaAdapterClass` (default `PrismaMariaDb`), then passes `{PrismaAdapter}` to the loader and the resulting
+`prismaModules` to `EntitiesGenerator`.
+
+**Tests:** the Prisma driver runs only when `RELDENS_TEST_PRISMA_ENABLED=1` is set (in the shell or in
+`tests/.env.test`) and the three Prisma packages resolve (`TestHelpers.isPrismaEnabled()`). Otherwise Prisma is
+not mentioned in the test output at all. Install them locally without saving:
+`npm install --no-save prisma@7.9.1 @prisma/client@7.9.1 @prisma/adapter-mariadb@7.9.1`. See
+`.claude/prisma-setup.md` for the full install, run and uninstall workflow.
 
 **Used By:**
 - `bin/reldens-storage.js`: CLI entity generator
@@ -549,7 +668,7 @@ if(!prismaClient){
 
 ### DataServer Flow
 
-All three drivers follow this pattern:
+Every driver follows this pattern:
 
 ```
 1. new DataServer({config, rawEntities})
@@ -559,10 +678,10 @@ All three drivers follow this pattern:
 3. await executeRawSQL(dataServer, schemaSql)  ← Tables must exist before next step
    ↓
 4. await generateTestEntities(dataServer, driverName)
-   ├─ Introspects database schema
-   ├─ Creates models from tables
-   ├─ [Prisma only]: Generate schema + client + reconnect
-   └─ Calls dataServer.generateEntities()
+   - Introspects database schema
+   - Creates models from tables
+   - [Prisma only]: Generate schema + client + reconnect
+   - Calls dataServer.generateEntities()
    ↓
 5. dataServer.getEntity('entityName')  ← Returns repository
 ```
@@ -597,7 +716,8 @@ This happens ONCE during the `before()` hook inside `generateTestEntities()`.
 ### Test Files
 
 **Integration tests:**
-- `tests/integration/test-cross-driver-compatibility.js`: Full CRUD cycle for all 3 drivers
+- `tests/integration/test-drivers.js`: Full CRUD cycle for every active driver
+- `tests/integration/test-cross-driver-equivalence.js`: Same call on every active driver, fails on any divergence
 - `tests/integration/test-nested-filters.js`: Complex filter syntax (AND/OR/NOT/IN/LIKE)
 - `tests/integration/test-relations.js`: Relation loading and nested relations
 

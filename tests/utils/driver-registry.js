@@ -22,8 +22,8 @@ class DriverRegistry
             instanceId: Math.random()
         };
         this.schemaPath = FileHandler.joinPaths(__dirname, '..', 'fixtures', 'sql', 'test-schema.sql');
-        this.repoNames = ['testCategories', 'testProducts', 'testReviews'];
-        this.driverNames = ['objection-js', 'mikro-orm', 'prisma'];
+        this.repoNames = ['testCategories', 'testProductDetails', 'testProducts', 'testReviews'];
+        this.driverNames = TestHelpers.activeDriverNames();
         this.skipGeneration = false;
     }
 

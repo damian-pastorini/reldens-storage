@@ -1,0 +1,17 @@
+/**
+ *
+ * Reldens - {{modelClassName}}
+ *
+ */
+
+class {{modelClassName}}
+{
+
+    static get tableName()
+    {
+        return '{{tableName}}';
+    }
+{{idColumn}}{{modelRelations}}
+}
+
+module.exports.{{modelClassName}} = {{modelClassName}};

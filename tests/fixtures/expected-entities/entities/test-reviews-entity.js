@@ -24,6 +24,7 @@ class TestReviewsEntity extends EntityProperties
                 type: 'reference',
                 reference: 'test_products',
                 alias: 'related_test_products',
+                onDelete: 'cascade',
                 isRequired: true,
                 dbType: 'int'
             },
@@ -54,6 +55,14 @@ class TestReviewsEntity extends EntityProperties
             helpful_count: {
                 type: 'number',
                 dbType: 'int'
+            },
+            category_slug: {
+                type: 'reference',
+                reference: 'test_categories',
+                alias: 'related_test_categories',
+                referenceKey: 'slug',
+                onDelete: 'setNull',
+                dbType: 'varchar'
             },
             created_at: {
                 type: 'datetime',
