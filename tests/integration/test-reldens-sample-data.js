@@ -52,7 +52,7 @@ class ReldensSampleDataTest
         this.botsForestNextRoomName = 'reldens-bots-forest-house-01-n0';
         this.playersStateId = 1;
         this.playersStatePlayerId = 1;
-        this.playersStateRoomId = 5;
+        this.playersStateRoomId = 41;
     }
 
     async run()
