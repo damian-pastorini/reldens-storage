@@ -1,0 +1,65 @@
+name: Tests
+
+on:
+  pull_request:
+  push:
+    branches: [develop, master]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: tests-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  tests:
+    name: tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    services:
+      mysql:
+        image: mysql:8.4
+        env:
+          MYSQL_ROOT_PASSWORD: test_root_password
+          MYSQL_DATABASE: reldens_storage_test
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="mysqladmin ping -h 127.0.0.1 -ptest_root_password"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=10
+    steps:
+      - name: Checkout the source
+        uses: actions/checkout@v4
+
+      - name: Checkout the reldens migrations used by the storage tests
+        uses: actions/checkout@v4
+        with:
+          repository: damian-pastorini/reldens
+          ref: 4.0.0-beta.39.9
+          path: reldens-main
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run tests
+        env:
+          RELDENS_LOG_LEVEL: '9'
+          RELDENS_TEST_DB_HOST: 127.0.0.1
+          RELDENS_TEST_DB_PORT: '3306'
+          RELDENS_TEST_DB_USER: root
+          RELDENS_TEST_DB_PASSWORD: test_root_password
+          RELDENS_TEST_DB_NAME: reldens_storage_test
+          RELDENS_TEST_RELDENS_DB_NAME: reldens_storage_test_full
+          RELDENS_TEST_DB_CLIENT: mysql
+          RELDENS_TEST_MIGRATIONS_PATH: ${{ github.workspace }}/reldens-main/migrations/production
+          RELDENS_DB_URL: mysql://root:test_root_password@127.0.0.1:3306/reldens_storage_test
+        run: npm test
